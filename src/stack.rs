@@ -158,6 +158,7 @@ mod tests {
     #[test]
     fn to_alt() {
         let mut stack = StackImpl::new();
+        assert!(stack.to_alt().is_err());
         stack.push(&[1, 2, 3]).unwrap();
         stack.to_alt().unwrap();
         assert_eq!(stack.depth(), 0);
@@ -168,6 +169,7 @@ mod tests {
     #[test]
     fn from_alt() {
         let mut stack = StackImpl::new();
+        assert!(stack.from_alt().is_err());
         stack.alt.push([1, 2, 3].to_vec());
         stack.from_alt().unwrap();
         assert_eq!(stack.depth(), 1);
