@@ -1,5 +1,0 @@
-// contract origins = ??? -> hash is best b/c no duplicates, and they are different
-// contract locations = origin = ???
-
-// object origins = txid + vout
-// object locations
