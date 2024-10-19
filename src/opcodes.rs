@@ -98,3 +98,6 @@ pub const OP_CREATE: u8 = 151;
 pub const OP_CALL: u8 = 152;
 pub const OP_STATE: u8 = 153;
 pub const OP_CONTRACT: u8 = 154;
+
+// Funding
+pub const OP_FUND: u8 = 155;
