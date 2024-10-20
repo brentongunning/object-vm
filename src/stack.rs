@@ -1,31 +1,28 @@
 use crate::errors::StackError;
 
 pub trait Stack {
+    fn clear(&mut self);
     fn push(&mut self, buf: &[u8]) -> Result<(), StackError>;
     fn top(&self) -> Option<&[u8]>;
     fn drop(&mut self, index: usize) -> Result<(), StackError>;
     fn swap(&mut self, index: usize) -> Result<(), StackError>;
     fn depth(&self) -> usize;
-    fn to_alt(&mut self) -> Result<(), StackError>;
-    fn from_alt(&mut self) -> Result<(), StackError>;
-    fn clear(&mut self);
+    fn push_to_alt_stack(&mut self) -> Result<(), StackError>;
+    fn pop_from_alt_stack(&mut self) -> Result<(), StackError>;
 }
 
+#[derive(Default)]
 pub struct StackImpl {
     stack: Vec<Vec<u8>>,
     alt: Vec<Vec<u8>>,
 }
 
-impl StackImpl {
-    pub fn new() -> Self {
-        StackImpl {
-            stack: Vec::new(),
-            alt: Vec::new(),
-        }
-    }
-}
-
 impl Stack for StackImpl {
+    fn clear(&mut self) {
+        self.stack.clear();
+        self.alt.clear();
+    }
+
     fn push(&mut self, buf: &[u8]) -> Result<(), StackError> {
         self.stack.push(buf.to_vec());
         Ok(())
@@ -58,7 +55,7 @@ impl Stack for StackImpl {
         self.stack.len()
     }
 
-    fn to_alt(&mut self) -> Result<(), StackError> {
+    fn push_to_alt_stack(&mut self) -> Result<(), StackError> {
         if let Some(top) = self.stack.pop() {
             self.alt.push(top);
             Ok(())
@@ -67,18 +64,13 @@ impl Stack for StackImpl {
         }
     }
 
-    fn from_alt(&mut self) -> Result<(), StackError> {
+    fn pop_from_alt_stack(&mut self) -> Result<(), StackError> {
         if let Some(top) = self.alt.pop() {
             self.stack.push(top);
             Ok(())
         } else {
             Err(StackError::Underflow)
         }
-    }
-
-    fn clear(&mut self) {
-        self.stack.clear();
-        self.alt.clear();
     }
 }
 
@@ -88,13 +80,13 @@ mod tests {
 
     #[test]
     fn new_stack() {
-        let stack = StackImpl::new();
+        let stack = StackImpl::default();
         assert_eq!(stack.depth(), 0);
     }
 
     #[test]
     fn push() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         stack.push(&[1, 2, 3]).unwrap();
         assert_eq!(stack.depth(), 1);
         assert_eq!(stack.top().unwrap(), &[1, 2, 3]);
@@ -108,7 +100,7 @@ mod tests {
 
     #[test]
     fn top() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         assert_eq!(stack.top(), None);
         stack.push(&[1, 2, 3]).unwrap();
         assert_eq!(stack.top().unwrap(), &[1, 2, 3]);
@@ -116,7 +108,7 @@ mod tests {
 
     #[test]
     fn drop() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
         stack.drop(0).unwrap();
@@ -127,7 +119,7 @@ mod tests {
 
     #[test]
     fn swap() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
         stack.swap(1).unwrap();
@@ -141,7 +133,7 @@ mod tests {
 
     #[test]
     fn depth() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         assert_eq!(stack.depth(), 0);
         stack.push(&[1, 2, 3]).unwrap();
         assert_eq!(stack.depth(), 1);
@@ -153,21 +145,21 @@ mod tests {
 
     #[test]
     fn to_alt() {
-        let mut stack = StackImpl::new();
-        assert!(stack.to_alt().is_err());
+        let mut stack = StackImpl::default();
+        assert!(stack.push_to_alt_stack().is_err());
         stack.push(&[1, 2, 3]).unwrap();
-        stack.to_alt().unwrap();
+        stack.push_to_alt_stack().unwrap();
         assert_eq!(stack.depth(), 0);
         assert_eq!(stack.alt.len(), 1);
         assert_eq!(stack.alt[0], [1, 2, 3]);
     }
 
     #[test]
-    fn from_alt() {
-        let mut stack = StackImpl::new();
-        assert!(stack.from_alt().is_err());
+    fn pop_from_alt_stack() {
+        let mut stack = StackImpl::default();
+        assert!(stack.pop_from_alt_stack().is_err());
         stack.alt.push([1, 2, 3].to_vec());
-        stack.from_alt().unwrap();
+        stack.pop_from_alt_stack().unwrap();
         assert_eq!(stack.depth(), 1);
         assert_eq!(stack.top().unwrap(), &[1, 2, 3]);
         assert_eq!(stack.alt.len(), 0);
@@ -175,10 +167,10 @@ mod tests {
 
     #[test]
     fn clear() {
-        let mut stack = StackImpl::new();
+        let mut stack = StackImpl::default();
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
-        stack.to_alt().unwrap();
+        stack.push_to_alt_stack().unwrap();
         stack.clear();
         assert_eq!(stack.depth(), 0);
         assert_eq!(stack.alt.len(), 0);
