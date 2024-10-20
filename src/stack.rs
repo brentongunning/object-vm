@@ -1,18 +1,14 @@
-pub trait Stack {
-    fn push(&mut self, buf: &[u8]) -> Result<(), Error>;
-    fn top(&self) -> Option<&[u8]>;
-    fn drop(&mut self, index: usize) -> Result<(), Error>;
-    fn swap(&mut self, index: usize) -> Result<(), Error>;
-    fn depth(&self) -> usize;
-    fn to_alt(&mut self) -> Result<(), Error>;
-    fn from_alt(&mut self) -> Result<(), Error>;
-    fn clear(&mut self);
-}
+use crate::errors::StackError;
 
-#[derive(Debug)]
-pub enum Error {
-    Underflow,
-    Overflow,
+pub trait Stack {
+    fn push(&mut self, buf: &[u8]) -> Result<(), StackError>;
+    fn top(&self) -> Option<&[u8]>;
+    fn drop(&mut self, index: usize) -> Result<(), StackError>;
+    fn swap(&mut self, index: usize) -> Result<(), StackError>;
+    fn depth(&self) -> usize;
+    fn to_alt(&mut self) -> Result<(), StackError>;
+    fn from_alt(&mut self) -> Result<(), StackError>;
+    fn clear(&mut self);
 }
 
 pub struct StackImpl {
@@ -30,7 +26,7 @@ impl StackImpl {
 }
 
 impl Stack for StackImpl {
-    fn push(&mut self, buf: &[u8]) -> Result<(), Error> {
+    fn push(&mut self, buf: &[u8]) -> Result<(), StackError> {
         self.stack.push(buf.to_vec());
         Ok(())
     }
@@ -39,18 +35,18 @@ impl Stack for StackImpl {
         self.stack.last().map(|v| v.as_slice())
     }
 
-    fn drop(&mut self, index: usize) -> Result<(), Error> {
+    fn drop(&mut self, index: usize) -> Result<(), StackError> {
         if index >= self.stack.len() {
-            return Err(Error::Underflow);
+            return Err(StackError::Underflow);
         }
         let index = self.stack.len() - 1 - index;
         self.stack.remove(index);
         Ok(())
     }
 
-    fn swap(&mut self, index: usize) -> Result<(), Error> {
+    fn swap(&mut self, index: usize) -> Result<(), StackError> {
         if index >= self.stack.len() {
-            return Err(Error::Underflow);
+            return Err(StackError::Underflow);
         }
         let index = self.stack.len() - 1 - index;
         let index2 = self.stack.len() - 1;
@@ -62,21 +58,21 @@ impl Stack for StackImpl {
         self.stack.len()
     }
 
-    fn to_alt(&mut self) -> Result<(), Error> {
+    fn to_alt(&mut self) -> Result<(), StackError> {
         if let Some(top) = self.stack.pop() {
             self.alt.push(top);
             Ok(())
         } else {
-            Err(Error::Underflow)
+            Err(StackError::Underflow)
         }
     }
 
-    fn from_alt(&mut self) -> Result<(), Error> {
+    fn from_alt(&mut self) -> Result<(), StackError> {
         if let Some(top) = self.alt.pop() {
             self.stack.push(top);
             Ok(())
         } else {
-            Err(Error::Underflow)
+            Err(StackError::Underflow)
         }
     }
 

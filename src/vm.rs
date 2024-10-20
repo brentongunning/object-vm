@@ -1,23 +1,19 @@
-use crate::stack::{Error as StackError, Stack};
+use crate::{errors::VmError, stack::Stack};
 
 pub trait Vm {
     type Stack: Stack;
 
     fn stack(&mut self) -> &mut Self::Stack;
 
-    fn deploy(&mut self) -> Result<(), Error>;
-    fn create(&mut self) -> Result<(), Error>;
-    fn call(&mut self) -> Result<(), Error>;
-    fn state(&mut self) -> Result<(), Error>;
-    fn contract(&mut self) -> Result<(), Error>;
+    fn deploy(&mut self) -> Result<(), VmError>;
+    fn create(&mut self) -> Result<(), VmError>;
+    fn call(&mut self) -> Result<(), VmError>;
+    fn state(&mut self) -> Result<(), VmError>;
+    fn contract(&mut self) -> Result<(), VmError>;
 
-    fn uniquifier(&mut self) -> Result<(), Error>;
-    fn fund(&mut self) -> Result<(), Error>;
+    fn uniquifier(&mut self) -> Result<(), VmError>;
+    fn fund(&mut self) -> Result<(), VmError>;
 
-    fn sigcheck(&mut self) -> Result<(), Error>;
-    fn caller(&mut self) -> Result<(), Error>;
-}
-
-pub enum Error {
-    Stack(StackError),
+    fn sigcheck(&mut self) -> Result<(), VmError>;
+    fn caller(&mut self) -> Result<(), VmError>;
 }
