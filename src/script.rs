@@ -166,10 +166,8 @@ mod tests {
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
         let r = skip_op(&[vec![OP_0, OP_PUSHDATA4, 1, 0, 0, 0]].concat(), 1);
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
-        let r = skip_op(
-            &[vec![OP_UNIQUIFIER], vec![0; LOCATION_LEN - 1]].concat(),
-            0,
-        );
+        let v = [vec![OP_UNIQUIFIER], vec![0; LOCATION_LEN - 1]].concat();
+        let r = skip_op(&v, 0);
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
         let r = skip_op(&[OP_PUSHDATA1], 0);
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));

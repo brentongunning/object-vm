@@ -114,7 +114,7 @@ mod tests {
         stack.drop(0).unwrap();
         assert_eq!(stack.depth(), 1);
         assert_eq!(stack.top().unwrap(), &[1, 2, 3]);
-        assert!(stack.drop(1).is_err());
+        assert!(matches!(stack.drop(1), Err(StackError::Underflow)));
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod tests {
         stack.swap(1).unwrap();
         assert_eq!(stack.depth(), 2);
         assert_eq!(stack.top().unwrap(), &[4, 5, 6]);
-        assert!(stack.swap(2).is_err());
+        assert!(matches!(stack.swap(2), Err(StackError::Underflow)));
     }
 
     #[test]
@@ -144,9 +144,10 @@ mod tests {
     }
 
     #[test]
-    fn to_alt() {
+    fn push_to_alt_stack() {
         let mut stack = StackImpl::default();
-        assert!(stack.push_to_alt_stack().is_err());
+        let r = stack.push_to_alt_stack();
+        assert!(matches!(r, Err(StackError::Underflow)));
         stack.push(&[1, 2, 3]).unwrap();
         stack.push_to_alt_stack().unwrap();
         assert_eq!(stack.depth(), 0);
@@ -154,12 +155,11 @@ mod tests {
         assert_eq!(stack.alt[0], [1, 2, 3]);
     }
 
-    // TODO: Don't do is_err(). Check for specific errors.
-
     #[test]
     fn pop_from_alt_stack() {
         let mut stack = StackImpl::default();
-        assert!(stack.pop_from_alt_stack().is_err());
+        let r = stack.pop_from_alt_stack();
+        assert!(matches!(r, Err(StackError::Underflow)));
         stack.alt.push([1, 2, 3].to_vec());
         stack.pop_from_alt_stack().unwrap();
         assert_eq!(stack.depth(), 1);
