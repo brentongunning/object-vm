@@ -10,18 +10,30 @@ pub trait SigVerifier {
 }
 
 pub struct SigVerifierImpl<'a> {
-    _tx: &'a Tx,
+    tx: &'a Tx,
 }
 
 impl<'a> SigVerifierImpl<'a> {
     pub fn new(tx: &'a Tx) -> Self {
-        Self { _tx: tx }
+        Self { tx }
     }
 }
 
 impl<'a> SigVerifier for SigVerifierImpl<'a> {
-    fn verify(&mut self, _pubkey: &PubKey, _sig: &Sig, _index: usize) -> Result<(), VerifyError> {
-        unimplemented!();
+    fn verify(&mut self, pubkey: &PubKey, sig: &Sig, index: usize) -> Result<(), VerifyError> {
+        let sighash = sighash(self.tx, index)?;
+
+        let ed25519_public_key = ed25519_dalek_blake3::PublicKey::from_bytes(pubkey)
+            .map_err(|_| VerifyError::BadPubKey)?;
+
+        let ed25519_signature = ed25519_dalek_blake3::Signature::from_bytes(sig)
+            .map_err(|_| VerifyError::BadSignature)?;
+
+        ed25519_public_key
+            .verify_strict(&sighash, &ed25519_signature)
+            .map_err(|_| VerifyError::BadSignature)?;
+
+        Ok(())
     }
 }
 
@@ -57,6 +69,173 @@ fn clear_sigs(script: &mut [u8]) -> Result<(), ScriptError> {
 mod tests {
     use super::*;
     use crate::core::{blake3d, ReadWrite, Tx};
+
+    #[test]
+    fn verify_sign() {
+        use super::sighash;
+        use ed25519_dalek_blake3::{Keypair, Signer};
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = Keypair::generate(&mut csprng);
+        let pubkey = keypair.public.to_bytes();
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&pubkey);
+        tx.script.extend_from_slice(&[0; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        let msg = sighash(&tx, 1).unwrap();
+        let sig = keypair.sign(&msg);
+        let sig_start = 2 + PUBKEY_LEN;
+        let sig_end = sig_start + SIG_LEN;
+        tx.script[sig_start..sig_end].copy_from_slice(&sig.to_bytes());
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(sig_verifier.verify(&pubkey, &sig.to_bytes(), 1).is_ok());
+    }
+
+    #[test]
+    fn verify_signto() {
+        use super::sighash;
+        use ed25519_dalek_blake3::{Keypair, Signer};
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = Keypair::generate(&mut csprng);
+        let pubkey = keypair.public.to_bytes();
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGNTO]);
+        tx.script.extend_from_slice(&pubkey);
+        tx.script.extend_from_slice(&[0; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        let msg = sighash(&tx, 1).unwrap();
+        let sig = keypair.sign(&msg);
+        let sig_start = 2 + PUBKEY_LEN;
+        let sig_end = sig_start + SIG_LEN;
+        tx.script[sig_start..sig_end].copy_from_slice(&sig.to_bytes());
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(sig_verifier.verify(&pubkey, &sig.to_bytes(), 1).is_ok());
+    }
+
+    #[test]
+    fn verify_multiple() {
+        use super::sighash;
+        use ed25519_dalek_blake3::{Keypair, Signer};
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = Keypair::generate(&mut csprng);
+        let pubkey = keypair.public.to_bytes();
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&pubkey);
+        tx.script.extend_from_slice(&[0; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        tx.script.extend_from_slice(&[OP_SIGNTO]);
+        tx.script.extend_from_slice(&pubkey);
+        tx.script.extend_from_slice(&[0; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_2]);
+        let msg = sighash(&tx, 1).unwrap();
+        let sig = keypair.sign(&msg);
+        let sig_start = 2 + PUBKEY_LEN;
+        let sig_end = sig_start + SIG_LEN;
+        tx.script[sig_start..sig_end].copy_from_slice(&sig.to_bytes());
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(sig_verifier.verify(&pubkey, &sig.to_bytes(), 1).is_ok());
+        let index = 3 + PUBKEY_LEN + SIG_LEN;
+        let msg = sighash(&tx, index).unwrap();
+        let sig = keypair.sign(&msg);
+        let sig_start = 4 + PUBKEY_LEN * 2 + SIG_LEN;
+        let sig_end = sig_start + SIG_LEN;
+        tx.script[sig_start..sig_end].copy_from_slice(&sig.to_bytes());
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(sig_verifier.verify(&pubkey, &sig.to_bytes(), index).is_ok());
+    }
+
+    #[test]
+    fn verify_bad_index() {
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(matches!(
+            sig_verifier.verify(&[0; PUBKEY_LEN], &[0; SIG_LEN], 0),
+            Err(VerifyError::BadIndex)
+        ));
+    }
+
+    #[test]
+    fn verify_unexpected_end_of_script() {
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(matches!(
+            sig_verifier.verify(&[0; PUBKEY_LEN], &[0; SIG_LEN], 0),
+            Err(VerifyError::Script(ScriptError::UnexpectedEndOfScript))
+        ));
+    }
+
+    #[test]
+    fn verify_invalid_pubkey() {
+        let mut bad_pubkey = [0; PUBKEY_LEN];
+        bad_pubkey[PUBKEY_LEN - 1] = 1;
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&bad_pubkey);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(matches!(
+            sig_verifier.verify(&bad_pubkey, &[0; SIG_LEN], 0),
+            Err(VerifyError::BadPubKey)
+        ));
+    }
+
+    #[test]
+    fn verify_invalid_signature() {
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(matches!(
+            sig_verifier.verify(&[1; PUBKEY_LEN], &[255; SIG_LEN], 0),
+            Err(VerifyError::BadSignature)
+        ));
+    }
+
+    #[test]
+    fn verify_wrong_signature() {
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(matches!(
+            sig_verifier.verify(&[1; PUBKEY_LEN], &[0; SIG_LEN], 0),
+            Err(VerifyError::BadSignature)
+        ));
+    }
+
+    #[test]
+    fn verify_fixed() {
+        // let seckey = "80af45f9edb73c8720ede48ede78c1b0489ea611ac87c7027380b3ee996f37d1";
+        let pubkey = "63dbe722c84c7045c8e7770563fdeba746090476321494842c10b17c486f8b47";
+        let sig = "a950dcd9dca21ef209c9158129a8133b487c7dc362cae905ed6e4a2f69fd10e10689170f9769b3f91fcc6209902cad43fdbd9cbe6b02170bffddfc94b2426501";
+        use ed25519_dalek_blake3::{PublicKey, Signature};
+        let pubkey = hex::decode(pubkey).unwrap();
+        let pubkey = PublicKey::from_bytes(&pubkey).unwrap();
+        let sig = hex::decode(sig).unwrap();
+        let sig = Signature::from_bytes(&sig).unwrap();
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&pubkey.to_bytes());
+        tx.script.extend_from_slice(&[0; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        let sig_start = 2 + PUBKEY_LEN;
+        let sig_end = sig_start + SIG_LEN;
+        tx.script[sig_start..sig_end].copy_from_slice(&sig.to_bytes());
+        let mut sig_verifier = SigVerifierImpl::new(&tx);
+        assert!(sig_verifier
+            .verify(&pubkey.to_bytes(), &sig.to_bytes(), 1)
+            .is_ok());
+    }
 
     #[test]
     fn sighash() {

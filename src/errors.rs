@@ -17,6 +17,8 @@ pub enum StackError {
 #[derive(Debug)]
 pub enum VerifyError {
     BadIndex,
+    BadPubKey,
+    BadSignature,
     Script(ScriptError),
 }
 
