@@ -15,9 +15,24 @@ pub enum StackError {
 }
 
 #[derive(Debug)]
-pub enum VerifyError {}
+pub enum VerifyError {
+    BadIndex,
+    Script(ScriptError),
+}
 
 #[derive(Debug)]
 pub enum VmError {
     Stack(StackError),
+}
+
+impl From<ScriptError> for VerifyError {
+    fn from(e: ScriptError) -> Self {
+        VerifyError::Script(e)
+    }
+}
+
+impl From<StackError> for VmError {
+    fn from(e: StackError) -> Self {
+        VmError::Stack(e)
+    }
 }

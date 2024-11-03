@@ -1,4 +1,8 @@
-use crate::{core::ID_LEN, errors::ScriptError, opcodes::*};
+use crate::{
+    core::{ID_LEN, PUBKEY_LEN, SIG_LEN},
+    errors::ScriptError,
+    opcodes::*,
+};
 
 pub fn skip_branch(script: &[u8], mut i: usize) -> Result<usize, ScriptError> {
     let mut sub = 0;
@@ -56,6 +60,7 @@ pub fn skip_op(script: &[u8], mut i: usize) -> Result<usize, ScriptError> {
             let len = u32::from_le_bytes(script[i..i + 4].try_into().unwrap()) as usize;
             advance(4 + len)
         }
+        OP_SIGN | OP_SIGNTO => advance(PUBKEY_LEN + SIG_LEN),
         OP_UNIQUIFIER => advance(ID_LEN),
         _ => Ok(i),
     }
@@ -64,7 +69,6 @@ pub fn skip_op(script: &[u8], mut i: usize) -> Result<usize, ScriptError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::opcodes::OP_0;
 
     #[test]
     fn skip_branch() {
@@ -152,6 +156,10 @@ mod tests {
         assert_eq!(skip_op(&v, 0).unwrap(), 1 + ID_LEN);
         let v = [vec![OP_0, OP_UNIQUIFIER], vec![0; ID_LEN]].concat();
         assert_eq!(skip_op(&v, 1).unwrap(), 2 + ID_LEN);
+        let v = [vec![OP_SIGN], vec![0; PUBKEY_LEN + SIG_LEN]].concat();
+        assert_eq!(skip_op(&v, 0).unwrap(), 1 + PUBKEY_LEN + SIG_LEN);
+        let v = [vec![OP_0, OP_SIGNTO, OP_0], vec![0; PUBKEY_LEN + SIG_LEN]].concat();
+        assert_eq!(skip_op(&v, 1).unwrap(), 2 + PUBKEY_LEN + SIG_LEN);
         assert!(matches!(skip_op(&[161], 0), Err(ScriptError::BadOpcode)));
         assert!(matches!(skip_op(&[255], 0), Err(ScriptError::BadOpcode)));
         assert_eq!(skip_op(&[OP_0, 255], 0).unwrap(), 1);
@@ -167,6 +175,12 @@ mod tests {
         let r = skip_op(&[vec![OP_0, OP_PUSHDATA4, 1, 0, 0, 0]].concat(), 1);
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
         let v = [vec![OP_UNIQUIFIER], vec![0; ID_LEN - 1]].concat();
+        let r = skip_op(&v, 0);
+        assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
+        let v = [vec![OP_SIGN], vec![0; PUBKEY_LEN + SIG_LEN - 1]].concat();
+        let r = skip_op(&v, 0);
+        assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
+        let v = [vec![OP_SIGNTO], vec![0; PUBKEY_LEN + SIG_LEN - 1]].concat();
         let r = skip_op(&v, 0);
         assert!(matches!(r, Err(ScriptError::UnexpectedEndOfScript)));
         let r = skip_op(&[OP_PUSHDATA1], 0);

@@ -1,6 +1,8 @@
 use crate::{
-    core::{PubKey, Sig, Tx},
-    errors::VerifyError,
+    core::{Hash, PubKey, Sig, Tx, PUBKEY_LEN, SIG_LEN},
+    errors::{ScriptError, VerifyError},
+    opcodes::*,
+    script::skip_op,
 };
 
 pub trait SigVerifier {
@@ -21,6 +23,34 @@ impl<'a> SigVerifier for SigVerifierImpl<'a> {
     fn verify(&mut self, _pubkey: &PubKey, _sig: &Sig, _index: usize) -> Result<(), VerifyError> {
         unimplemented!();
     }
+}
+
+fn sighash(tx: &Tx, index: usize) -> Result<Hash, VerifyError> {
+    let opcode = *tx.script.get(index).ok_or(VerifyError::BadIndex)?;
+
+    let mut tx = tx.clone();
+
+    match opcode {
+        OP_SIGN => {}
+        OP_SIGNTO => tx.script.truncate(index + 1 + PUBKEY_LEN + SIG_LEN),
+        _ => return Err(VerifyError::BadIndex),
+    }
+
+    clear_sigs(&mut tx.script)?;
+
+    Ok(tx.id())
+}
+
+fn clear_sigs(script: &mut [u8]) -> Result<(), ScriptError> {
+    let mut i = 0;
+    while i < script.len() {
+        let next = skip_op(script, i)?;
+        if script[i] == OP_SIGN || script[i] == OP_SIGNTO {
+            script[i + 1 + PUBKEY_LEN..next].fill(0);
+        }
+        i = next;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
