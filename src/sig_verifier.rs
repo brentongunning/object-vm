@@ -28,17 +28,17 @@ impl<'a> SigVerifier for SigVerifierImpl<'a> {
 fn sighash(tx: &Tx, index: usize) -> Result<Hash, VerifyError> {
     let opcode = *tx.script.get(index).ok_or(VerifyError::BadIndex)?;
 
-    let mut tx = tx.clone();
+    let mut sign_tx = tx.clone();
 
     match opcode {
         OP_SIGN => {}
-        OP_SIGNTO => tx.script.truncate(index + 1 + PUBKEY_LEN + SIG_LEN),
+        OP_SIGNTO => sign_tx.script.truncate(index + 1 + PUBKEY_LEN + SIG_LEN),
         _ => return Err(VerifyError::BadIndex),
     }
 
-    clear_sigs(&mut tx.script)?;
+    clear_sigs(&mut sign_tx.script)?;
 
-    Ok(tx.id())
+    Ok(sign_tx.id())
 }
 
 fn clear_sigs(script: &mut [u8]) -> Result<(), ScriptError> {
@@ -56,19 +56,155 @@ fn clear_sigs(script: &mut [u8]) -> Result<(), ScriptError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Tx;
+    use crate::core::{blake3d, ReadWrite, Tx};
 
     #[test]
-    #[should_panic]
-    fn test_sig_verifier() {
-        let tx = Tx {
-            version: 1,
-            script: vec![0x01, 0x02, 0x03],
-        };
-        let mut verifier = SigVerifierImpl::new(&tx);
-        let pubkey = [0u8; 32];
-        let sig = [0u8; 64];
-        let index = 0;
-        verifier.verify(&pubkey, &sig, index).ok();
+    fn sighash() {
+        use super::sighash;
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        assert!(matches!(sighash(&tx, 0), Err(VerifyError::BadIndex)));
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_SIGNTO]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        let mut tx2 = Tx::default();
+        tx2.script.extend_from_slice(&[OP_SIGN]);
+        tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx2.script.extend_from_slice(&[0; SIG_LEN]);
+        tx2.script.extend_from_slice(&[OP_SIGNTO]);
+        tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx2.script.extend_from_slice(&[0; SIG_LEN]);
+        assert_eq!(sighash(&tx, 0).unwrap(), tx2.id());
+        assert_eq!(sighash(&tx, 97).unwrap(), tx2.id());
+        assert!(matches!(sighash(&tx, 98), Err(VerifyError::BadIndex)));
+        assert!(matches!(sighash(&tx, 255), Err(VerifyError::BadIndex)));
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        let mut tx2 = Tx::default();
+        tx2.script.extend_from_slice(&[OP_0]);
+        tx2.script.extend_from_slice(&[OP_SIGN]);
+        tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx2.script.extend_from_slice(&[0; SIG_LEN]);
+        tx2.script.extend_from_slice(&[OP_1]);
+        assert_eq!(sighash(&tx, 1).unwrap(), tx2.id());
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_0]);
+        tx.script.extend_from_slice(&[OP_SIGNTO]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        tx.script.extend_from_slice(&[OP_1]);
+        let mut tx2 = Tx::default();
+        tx2.script.extend_from_slice(&[OP_0]);
+        tx2.script.extend_from_slice(&[OP_SIGNTO]);
+        tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx2.script.extend_from_slice(&[0; SIG_LEN]);
+        assert_eq!(sighash(&tx, 1).unwrap(), tx2.id());
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGNTO]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN - 1]);
+        let h = sighash(&tx, 0);
+        assert!(matches!(
+            h,
+            Err(VerifyError::Script(ScriptError::UnexpectedEndOfScript))
+        ));
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        tx.script.extend_from_slice(&[255]);
+        let h = sighash(&tx, 0);
+        assert!(matches!(
+            h,
+            Err(VerifyError::Script(ScriptError::BadOpcode))
+        ));
+        let mut tx = Tx::default();
+        tx.script.extend_from_slice(&[OP_SIGN]);
+        tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx.script.extend_from_slice(&[2; SIG_LEN]);
+        let mut tx2 = Tx::default();
+        tx2.script.extend_from_slice(&[OP_SIGN]);
+        tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
+        tx2.script.extend_from_slice(&[0; SIG_LEN]);
+        assert_eq!(sighash(&tx, 0).unwrap(), blake3d(&tx2.to_vec()));
+        let s = "0577959c0cb4de5242e4db8c750e1c418acea4850e59b479e263b29838bfba98";
+        let h = sighash(&tx, 0).unwrap();
+        assert_eq!(h.as_slice(), &hex::decode(s).unwrap());
+    }
+
+    #[test]
+    fn clear_sigs() {
+        use super::clear_sigs;
+        let mut v = vec![];
+        clear_sigs(&mut v).unwrap();
+        let mut v = vec![OP_1, OP_IF, OP_DUP, OP_BLAKE3];
+        let w = vec![OP_1, OP_IF, OP_DUP, OP_BLAKE3];
+        clear_sigs(&mut v).unwrap();
+        assert_eq!(v, w);
+        let mut v = [vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat();
+        let w = [vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![0; SIG_LEN]].concat();
+        clear_sigs(&mut v).unwrap();
+        assert_eq!(v, w);
+        let mut v = [
+            vec![OP_SIGN],
+            vec![1; PUBKEY_LEN],
+            vec![2; SIG_LEN],
+            vec![OP_SIGNTO],
+            vec![1; PUBKEY_LEN],
+            vec![2; SIG_LEN],
+        ]
+        .concat();
+        let w = [
+            vec![OP_SIGN],
+            vec![1; PUBKEY_LEN],
+            vec![0; SIG_LEN],
+            vec![OP_SIGNTO],
+            vec![1; PUBKEY_LEN],
+            vec![0; SIG_LEN],
+        ]
+        .concat();
+        clear_sigs(&mut v).unwrap();
+        assert_eq!(v, w);
+        let mut v = [
+            vec![OP_0],
+            vec![OP_SIGN],
+            vec![1; PUBKEY_LEN],
+            vec![2; SIG_LEN],
+            vec![OP_IF],
+            vec![OP_SIGNTO],
+            vec![1; PUBKEY_LEN],
+            vec![2; SIG_LEN],
+            vec![OP_ENDIF],
+        ]
+        .concat();
+        let w = [
+            vec![OP_0],
+            vec![OP_SIGN],
+            vec![1; PUBKEY_LEN],
+            vec![0; SIG_LEN],
+            vec![OP_IF],
+            vec![OP_SIGNTO],
+            vec![1; PUBKEY_LEN],
+            vec![0; SIG_LEN],
+            vec![OP_ENDIF],
+        ]
+        .concat();
+        clear_sigs(&mut v).unwrap();
+        assert_eq!(v, w);
+        let mut v = [vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN - 1]].concat();
+        assert!(matches!(
+            clear_sigs(&mut v),
+            Err(ScriptError::UnexpectedEndOfScript)
+        ));
+        let mut v = vec![161];
+        assert!(matches!(clear_sigs(&mut v), Err(ScriptError::BadOpcode)));
     }
 }
