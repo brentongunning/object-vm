@@ -4,6 +4,7 @@ pub enum StackError {
     Overflow,
 }
 
+#[derive(Debug)]
 pub enum VmError {
     Stack(StackError),
 }
