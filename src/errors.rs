@@ -5,6 +5,9 @@ pub enum StackError {
 }
 
 #[derive(Debug)]
+pub enum VerifyError {}
+
+#[derive(Debug)]
 pub enum VmError {
     Stack(StackError),
 }
