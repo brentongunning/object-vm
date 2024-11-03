@@ -154,6 +154,8 @@ mod tests {
         assert_eq!(stack.alt[0], [1, 2, 3]);
     }
 
+    // TODO: Don't do is_err(). Check for specific errors.
+
     #[test]
     fn pop_from_alt_stack() {
         let mut stack = StackImpl::default();

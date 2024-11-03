@@ -1,3 +1,5 @@
+pub const ORIGIN_LEN: usize = 36;
+pub const LOCATION_LEN: usize = 36;
 pub const PUBKEY_LEN: usize = 32;
 pub const SIG_LEN: usize = 64;
 

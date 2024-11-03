@@ -2,6 +2,13 @@
 pub enum ExecuteError {}
 
 #[derive(Debug)]
+pub enum ScriptError {
+    BadConditional,
+    BadOpcode,
+    UnexpectedEndOfScript,
+}
+
+#[derive(Debug)]
 pub enum StackError {
     Underflow,
     Overflow,
