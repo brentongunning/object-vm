@@ -6,4 +6,4 @@ Note: This implementation should not be used for consensus. Safety limits are ne
 
 ## Todo
 
-* Contract and object origins and locations
+* Class and object origins and locations

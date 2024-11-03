@@ -9,7 +9,7 @@ pub trait Vm {
     fn create(&mut self) -> Result<(), VmError>;
     fn call(&mut self) -> Result<(), VmError>;
     fn state(&mut self) -> Result<(), VmError>;
-    fn contract(&mut self) -> Result<(), VmError>;
+    fn class(&mut self) -> Result<(), VmError>;
 
     fn uniquifier(&mut self) -> Result<(), VmError>;
     fn fund(&mut self) -> Result<(), VmError>;
@@ -51,7 +51,7 @@ impl<S: Stack> Vm for VmImpl<S> {
         unimplemented!();
     }
 
-    fn contract(&mut self) -> Result<(), VmError> {
+    fn class(&mut self) -> Result<(), VmError> {
         unimplemented!();
     }
 
