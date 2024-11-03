@@ -1,4 +1,7 @@
 #[derive(Debug)]
+pub enum ExecuteError {}
+
+#[derive(Debug)]
 pub enum StackError {
     Underflow,
     Overflow,
