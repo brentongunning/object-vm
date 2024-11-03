@@ -1,10 +1,10 @@
-use crate::{core::Tx, errors::ExecuteError, sig_verifier::SigVerifier, vm::Vm};
+use crate::{errors::ExecuteError, sig_verifier::SigVerifier, vm::Vm};
 
 pub trait Interpreter {
     type SigVerifier: SigVerifier;
     type Vm: Vm;
 
-    fn execute(&mut self, tx: &Tx) -> Result<(), ExecuteError>;
+    fn execute(&mut self, script: &[u8]) -> Result<(), ExecuteError>;
 }
 
 pub struct InterpreterImpl<S: SigVerifier, V: Vm> {
@@ -25,7 +25,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
     type SigVerifier = S;
     type Vm = V;
 
-    fn execute(&mut self, _tx: &Tx) -> Result<(), ExecuteError> {
+    fn execute(&mut self, _script: &[u8]) -> Result<(), ExecuteError> {
         unimplemented!();
     }
 }
@@ -46,6 +46,6 @@ mod tests {
         let stack = StackImpl::default();
         let vm = VmImpl::new(stack);
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
-        interpreter.execute(&tx).ok();
+        interpreter.execute(&tx.script).ok();
     }
 }
