@@ -90,7 +90,7 @@ pub const OP_SIGN: u8 = 147;
 pub const OP_SIGNTO: u8 = 148;
 
 // Transaction
-pub const OP_UNIQUIFIER: u8 = 149; // Ensures txid is unique. Next 36 bytes is a location.
+pub const OP_UNIQUIFIER: u8 = 149; // Ensures txid is unique. Next 32 bytes is a revision id.
 
 // Objects
 pub const OP_DEPLOY: u8 = 150;
