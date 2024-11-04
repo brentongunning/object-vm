@@ -3,7 +3,7 @@ use crate::{
     opcodes::*,
     script::skip_branch,
     sig_verifier::SigVerifier,
-    stack::{pop_bool, push_bool, Stack},
+    stack::{decode_bool, decode_num, encode_bool, Stack},
     vm::Vm,
 };
 
@@ -85,7 +85,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
 
                 OP_1..=OP_16 => self.vm.stack().push(&[opcode - OP_1 + 1])?,
 
-                OP_IF => branch.push(pop_bool(self.vm.stack())?),
+                OP_IF => branch.push(self.vm.stack().pop(decode_bool)?),
 
                 OP_ELSE => {
                     let value = branch.last_mut().ok_or(ScriptError::BadConditional)?;
@@ -97,27 +97,27 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                 }
 
                 OP_NOT => {
-                    let value = pop_bool(self.vm.stack())?;
-                    push_bool(self.vm.stack(), !value)?;
+                    let value = self.vm.stack().pop(decode_bool)?;
+                    self.vm.stack().push(&encode_bool(!value))?;
                 }
 
                 OP_VERIFY => {
-                    if !pop_bool(self.vm.stack())? {
+                    if !self.vm.stack().pop(decode_bool)? {
                         return Err(ExecuteError::OpVerifyFailed);
                     }
                 }
 
-                /*
                 OP_DUPN => {
-                    let n: u64 = decode_num(vm.stack().pop()?)?;
-                    vm.stack().dup(n as usize)?;
+                    let n: u64 = self.vm.stack().pop(decode_num)??;
+                    self.vm.stack().dup(n as usize)?;
                 }
 
                 OP_DUP..=OP_DUP9 => {
                     let n = (opcode - OP_DUP) as usize + 1;
-                    vm.stack().dup(n)?;
+                    self.vm.stack().dup(n)?;
                 }
 
+                /*
                 OP_SWAPN => {
                     let n: u64 = decode_num(vm.stack().pop()?)?;
                     vm.stack().swap(n as usize)?;

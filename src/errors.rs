@@ -16,6 +16,7 @@ pub enum ScriptError {
 pub enum StackError {
     Underflow,
     Overflow,
+    BadElement,
 }
 
 #[derive(Debug)]
