@@ -1,5 +1,9 @@
 #[derive(Debug)]
-pub enum ExecuteError {}
+pub enum ExecuteError {
+    OpVerifyFailed,
+    Script(ScriptError),
+    Stack(StackError),
+}
 
 #[derive(Debug)]
 pub enum ScriptError {
@@ -25,6 +29,18 @@ pub enum VerifyError {
 #[derive(Debug)]
 pub enum VmError {
     Stack(StackError),
+}
+
+impl From<ScriptError> for ExecuteError {
+    fn from(e: ScriptError) -> Self {
+        ExecuteError::Script(e)
+    }
+}
+
+impl From<StackError> for ExecuteError {
+    fn from(e: StackError) -> Self {
+        ExecuteError::Stack(e)
+    }
 }
 
 impl From<ScriptError> for VerifyError {

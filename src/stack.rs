@@ -74,6 +74,22 @@ impl Stack for StackImpl {
     }
 }
 
+pub fn pop_bool(s: &mut impl Stack) -> Result<bool, StackError> {
+    let top = s.top().ok_or(StackError::Underflow)?;
+    let value = top.iter().any(|&x| x != 0);
+    s.drop(0)?;
+    Ok(value)
+}
+
+pub fn push_bool(s: &mut impl Stack, value: bool) -> Result<(), StackError> {
+    if value {
+        s.push(&[1])?;
+    } else {
+        s.push(&[])?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +192,33 @@ mod tests {
         stack.clear();
         assert_eq!(stack.depth(), 0);
         assert_eq!(stack.alt.len(), 0);
+    }
+
+    #[test]
+    fn pop_bool() {
+        use super::pop_bool;
+        let mut stack = StackImpl::default();
+        let r = pop_bool(&mut stack);
+        assert!(matches!(r, Err(StackError::Underflow)));
+        stack.push(&[]).unwrap();
+        assert_eq!(pop_bool(&mut stack).unwrap(), false);
+        stack.push(&[0]).unwrap();
+        assert_eq!(pop_bool(&mut stack).unwrap(), false);
+        stack.push(&[1]).unwrap();
+        assert_eq!(pop_bool(&mut stack).unwrap(), true);
+        stack.push(&[0, 0, 0]).unwrap();
+        assert_eq!(pop_bool(&mut stack).unwrap(), false);
+        stack.push(&[0, 0, 1]).unwrap();
+        assert_eq!(pop_bool(&mut stack).unwrap(), true);
+    }
+
+    #[test]
+    fn push_bool() {
+        use super::push_bool;
+        let mut stack = StackImpl::default();
+        push_bool(&mut stack, false).unwrap();
+        assert_eq!(stack.top().unwrap(), &[]);
+        push_bool(&mut stack, true).unwrap();
+        assert_eq!(stack.top().unwrap(), &[1]);
     }
 }
