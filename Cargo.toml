@@ -1,5 +1,5 @@
 [package]
-name = "bolt"
+name = "object-vm"
 version = "0.1.0"
 edition = "2021"
 
