@@ -1,7 +1,6 @@
 use num_bigint::BigInt;
-
 use crate::{
-    errors::{ExecuteError, ScriptError},
+    errors::{ExecuteError, ScriptError, StackError},
     opcodes::*,
     script::skip_branch,
     sig_verifier::SigVerifier,
@@ -146,24 +145,24 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().move_from_alt_stack()?;
                 }
 
-                /*
                 OP_CAT => {
-                    let b: Vec<u8> = vm.stack().pop()?;
-                    let a: Vec<u8> = vm.stack().pop()?;
-                    vm.stack().push([a, b].concat())?;
+                    let b: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
+                    let a: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
+                    self.vm.stack().push(&[a, b].concat())?;
                 }
 
                 OP_SPLIT => {
-                    let n: u64 = decode_num(vm.stack().pop()?)?;
-                    let a: Vec<u8> = vm.stack().pop()?;
+                    let n: u64 = self.vm.stack().pop(decode_num)??;
+                    let a: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
                     if n as usize > a.len() {
-                        Err(StackError::BadArg)?;
+                        Err(StackError::BadElement)?;
                     }
                     let (left, right) = a.split_at(n as usize);
-                    vm.stack().push(left.to_vec())?;
-                    vm.stack().push(right.to_vec())?;
+                    self.vm.stack().push(&left.to_vec())?;
+                    self.vm.stack().push(&right.to_vec())?;
                 }
 
+                /*
                 OP_SIZE => {
                     let len = vm
                         .stack()
