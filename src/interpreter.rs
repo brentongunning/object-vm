@@ -239,16 +239,15 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().push(&a)?;
                 }
 
-                /*
                 OP_EQUAL => {
-                    let b: Vec<u8> = vm.stack().pop()?;
-                    let a: Vec<u8> = vm.stack().pop()?;
-                    vm.stack().push(encode_bool(a == b))?;
+                    let b = self.vm.stack().pop(|x| x.to_vec())?;
+                    let a = self.vm.stack().pop(|x| x.to_vec())?;
+                    self.vm.stack().push(&encode_bool(a == b))?;
                 }
 
                 OP_ADD | OP_SUB | OP_MUL | OP_DIV | OP_MOD | OP_NUMEQUAL | OP_LT | OP_GT => {
-                    let b = decode_bigint(vm.stack().pop()?);
-                    let a = decode_bigint(vm.stack().pop()?);
+                    let b = self.vm.stack().pop(decode_bigint)?;
+                    let a = self.vm.stack().pop(decode_bigint)?;
                     if (opcode == OP_DIV || opcode == OP_MOD) && b.sign() == Sign::NoSign {
                         return Err(ExecuteError::DivideByZero);
                     }
@@ -263,9 +262,10 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                         OP_GT => encode_bool(a > b),
                         _ => unreachable!(),
                     };
-                    vm.stack().push(r)?;
+                    self.vm.stack().push(&r)?;
                 }
 
+                /*
                 OP_BLAKE3 => {
                     let data: Vec<u8> = vm.stack().pop()?;
                     vm.stack().push(blake3::hash(&data).as_bytes().to_vec())?;

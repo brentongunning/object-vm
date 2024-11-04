@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum ExecuteError {
+    DivideByZero,
     OpVerifyFailed,
     Script(ScriptError),
     Stack(StackError),
