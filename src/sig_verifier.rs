@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_invalid_pubkey() {
+    fn verify_bad_pubkey() {
         let mut bad_pubkey = [0; PUBKEY_LEN];
         bad_pubkey[PUBKEY_LEN - 1] = 1;
         let mut tx = Tx::default();
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_invalid_signature() {
+    fn verify_bad_signature() {
         let mut tx = Tx::default();
         tx.script.extend_from_slice(&[OP_SIGN]);
         tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_wrong_signature() {
+    fn verify_invalid_signature() {
         let mut tx = Tx::default();
         tx.script.extend_from_slice(&[OP_SIGN]);
         tx.script.extend_from_slice(&[1; PUBKEY_LEN]);
