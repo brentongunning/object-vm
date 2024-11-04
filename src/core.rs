@@ -12,7 +12,6 @@ pub type Hash = [u8; HASH_LEN];
 pub type PubKey = [u8; PUBKEY_LEN];
 pub type Sig = [u8; SIG_LEN];
 
-// TODO: Make this generic over bytes
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tx {
     pub version: u8,
@@ -29,7 +28,6 @@ impl Default for Tx {
 }
 
 impl Tx {
-    // TODO: Check uses of this
     pub fn id(&self) -> Id {
         blake3d(&self.to_vec())
     }
