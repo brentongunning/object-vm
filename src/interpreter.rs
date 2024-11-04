@@ -1,9 +1,11 @@
+use num_bigint::BigInt;
+
 use crate::{
     errors::{ExecuteError, ScriptError},
     opcodes::*,
     script::skip_branch,
     sig_verifier::SigVerifier,
-    stack::{decode_bool, decode_num, encode_bool, Stack},
+    stack::{decode_bool, decode_num, encode_bigint, encode_bool, Stack},
     vm::Vm,
 };
 
@@ -117,34 +119,34 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().dup(n)?;
                 }
 
-                /*
                 OP_SWAPN => {
-                    let n: u64 = decode_num(vm.stack().pop()?)?;
-                    vm.stack().swap(n as usize)?;
+                    let n: u64 = self.vm.stack().pop(decode_num)??;
+                    self.vm.stack().swap(n as usize)?;
                 }
 
                 OP_SWAP..=OP_SWAP9 => {
                     let n = (opcode - OP_SWAP) as usize + 1;
-                    vm.stack().swap(n)?;
+                    self.vm.stack().swap(n)?;
                 }
 
                 OP_DROP => {
-                    vm.stack().pop()?;
+                    self.vm.stack().pop(|_| {})?;
                 }
 
                 OP_DEPTH => {
-                    let len = vm.stack().len();
-                    vm.stack().push(encode_bigint(BigInt::from(len)))?;
+                    let depth = self.vm.stack().depth();
+                    self.vm.stack().push(&encode_bigint(BigInt::from(depth)))?;
                 }
 
                 OP_TOALTSTACK => {
-                    vm.stack().to_altstack()?;
+                    self.vm.stack().move_to_alt_stack()?;
                 }
 
                 OP_FROMALTSTACK => {
-                    vm.stack().from_altstack()?;
+                    self.vm.stack().move_from_alt_stack()?;
                 }
 
+                /*
                 OP_CAT => {
                     let b: Vec<u8> = vm.stack().pop()?;
                     let a: Vec<u8> = vm.stack().pop()?;
