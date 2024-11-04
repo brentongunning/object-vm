@@ -7,6 +7,7 @@ use crate::{
     vm::Vm,
 };
 use num_bigint::{BigInt, Sign};
+use sha2::{Digest, Sha256};
 
 pub trait Interpreter {
     type SigVerifier: SigVerifier;
@@ -265,19 +266,19 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().push(&r)?;
                 }
 
-                /*
                 OP_BLAKE3 => {
-                    let data: Vec<u8> = vm.stack().pop()?;
-                    vm.stack().push(blake3::hash(&data).as_bytes().to_vec())?;
+                    let data = self.vm.stack().pop(|x| x.to_vec())?;
+                    self.vm.stack().push(blake3::hash(&data).as_bytes())?;
                 }
 
                 OP_SHA256 => {
-                    let data: Vec<u8> = vm.stack().pop()?;
+                    let data = self.vm.stack().pop(|x| x.to_vec())?;
                     let mut sha256 = Sha256::new();
                     sha256.update(&data);
-                    vm.stack().push(sha256.finalize().as_slice().to_vec())?;
+                    self.vm.stack().push(sha256.finalize().as_slice())?;
                 }
 
+                /*
                 OP_SPEND => {
                     let location_buf = read(script, &mut i, LOCATION_LEN)?;
                     let location: Location = location_buf.try_into().unwrap();
