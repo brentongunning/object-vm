@@ -4,6 +4,8 @@ pub enum ExecuteError {
     OpVerifyFailed,
     Script(ScriptError),
     Stack(StackError),
+    Verify(VerifyError),
+    Vm(VmError),
 }
 
 #[derive(Debug)]
@@ -42,6 +44,18 @@ impl From<ScriptError> for ExecuteError {
 impl From<StackError> for ExecuteError {
     fn from(e: StackError) -> Self {
         ExecuteError::Stack(e)
+    }
+}
+
+impl From<VerifyError> for ExecuteError {
+    fn from(e: VerifyError) -> Self {
+        ExecuteError::Verify(e)
+    }
+}
+
+impl From<VmError> for ExecuteError {
+    fn from(e: VmError) -> Self {
+        ExecuteError::Vm(e)
     }
 }
 

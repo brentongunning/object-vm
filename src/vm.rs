@@ -5,17 +5,17 @@ pub trait Vm {
 
     fn stack(&mut self) -> &mut Self::Stack;
 
-    fn deploy(&mut self) -> Result<(), VmError>;
-    fn create(&mut self) -> Result<(), VmError>;
-    fn call(&mut self) -> Result<(), VmError>;
-    fn state(&mut self) -> Result<(), VmError>;
-    fn class(&mut self) -> Result<(), VmError>;
+    fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
+    fn create(&mut self) -> Result<(), VmError>; // args.. class_id -- object_id
+    fn call(&mut self) -> Result<(), VmError>; // args.. object_id -- result..
+    fn state(&mut self) -> Result<(), VmError>; // -- state
+    fn class(&mut self) -> Result<(), VmError>; // -- class_id
 
-    fn uniquifier(&mut self) -> Result<(), VmError>;
-    fn fund(&mut self) -> Result<(), VmError>;
+    fn auth(&mut self) -> Result<(), VmError>; // pubkey --
+    fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
+    fn fund(&mut self) -> Result<(), VmError>; // object_id --
 
-    fn sigcheck(&mut self) -> Result<(), VmError>;
-    fn caller(&mut self) -> Result<(), VmError>;
+    fn caller(&mut self) -> Result<(), VmError>; // -- object_id
 }
 
 pub struct VmImpl<S: Stack> {
@@ -55,15 +55,15 @@ impl<S: Stack> Vm for VmImpl<S> {
         unimplemented!();
     }
 
+    fn auth(&mut self) -> Result<(), VmError> {
+        unimplemented!();
+    }
+
     fn uniquifier(&mut self) -> Result<(), VmError> {
         unimplemented!();
     }
 
     fn fund(&mut self) -> Result<(), VmError> {
-        unimplemented!();
-    }
-
-    fn sigcheck(&mut self) -> Result<(), VmError> {
         unimplemented!();
     }
 

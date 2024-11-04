@@ -1,4 +1,5 @@
 use crate::{
+    core::{PubKey, Sig, PUBKEY_LEN, SIG_LEN},
     errors::{ExecuteError, ScriptError, StackError},
     opcodes::*,
     script::skip_branch,
@@ -17,16 +18,13 @@ pub trait Interpreter {
 }
 
 pub struct InterpreterImpl<S: SigVerifier, V: Vm> {
-    _sig_verifier: S,
+    sig_verifier: S,
     vm: V,
 }
 
 impl<S: SigVerifier, V: Vm> InterpreterImpl<S, V> {
     pub fn new(sig_verifier: S, vm: V) -> Self {
-        Self {
-            _sig_verifier: sig_verifier,
-            vm,
-        }
+        Self { sig_verifier, vm }
     }
 }
 
@@ -278,23 +276,23 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().push(sha256.finalize().as_slice())?;
                 }
 
-                /*
-                OP_SPEND => {
-                    let location_buf = read(script, &mut i, LOCATION_LEN)?;
-                    let location: Location = location_buf.try_into().unwrap();
-                    vm.stack().push(location.to_vec())?;
-                    vm.spend()?;
-                }
-
                 OP_SIGN | OP_SIGNTO => {
                     let index = i - 1;
                     let pubkey_buf = read(script, &mut i, PUBKEY_LEN)?;
                     let sig_buf = read(script, &mut i, SIG_LEN)?;
                     let pubkey: PubKey = pubkey_buf.try_into().unwrap();
                     let sig: Sig = sig_buf.try_into().unwrap();
-                    sig_verifier.verify(&pubkey, &sig, index)?;
-                    vm.stack().push(pubkey.to_vec())?;
-                    vm.auth()?;
+                    self.sig_verifier.verify(&pubkey, &sig, index)?;
+                    self.vm.stack().push(&pubkey)?;
+                    self.vm.auth()?;
+                }
+
+                /*
+                OP_UNIQUIFIER => {
+                    let location_buf = read(script, &mut i, LOCATION_LEN)?;
+                    let location: Location = location_buf.try_into().unwrap();
+                    vm.stack().push(location.to_vec())?;
+                    vm.spend()?;
                 }
 
                 OP_DEPLOY => {
@@ -309,36 +307,16 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     vm.call()?;
                 }
 
-                OP_READ => {
-                    vm.read()?;
-                }
-
-                OP_ASSIGN => {
-                    vm.assign()?;
-                }
-
                 OP_STATE => {
                     vm.state()?;
-                }
-
-                OP_OWNER => {
-                    vm.owner()?;
                 }
 
                 OP_CLASS => {
                     vm.class()?;
                 }
 
-                OP_HEIGHT => {
-                    vm.height()?;
-                }
-
                 OP_FUND => {
                     vm.fund()?;
-                }
-
-                OP_COLLECT => {
-                    vm.collect()?;
                 }
                 */
                 _ => Err(ScriptError::BadOpcode)?,
