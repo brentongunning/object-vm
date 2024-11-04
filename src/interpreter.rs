@@ -1,12 +1,12 @@
-use num_bigint::BigInt;
 use crate::{
     errors::{ExecuteError, ScriptError, StackError},
     opcodes::*,
     script::skip_branch,
     sig_verifier::SigVerifier,
-    stack::{decode_bool, decode_num, encode_bigint, encode_bool, Stack},
+    stack::{decode_bigint, decode_bool, decode_num, encode_bigint, encode_bool, Stack},
     vm::Vm,
 };
+use num_bigint::{BigInt, Sign};
 
 pub trait Interpreter {
     type SigVerifier: SigVerifier;
@@ -162,37 +162,33 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().push(&right.to_vec())?;
                 }
 
-                /*
                 OP_SIZE => {
-                    let len = vm
-                        .stack()
-                        .last()
-                        .ok_or(ExecuteError::Stack(StackError::Empty))?
-                        .len();
-                    vm.stack().push(encode_bigint(BigInt::from(len)))?;
+                    let len = self.vm.stack().last(|x| x.len())?;
+                    self.vm.stack().push(&encode_bigint(BigInt::from(len)))?;
                 }
 
                 OP_NUM2BIN => {
-                    let size: u64 = decode_num(vm.stack().pop()?)?;
-                    let n = decode_bigint(vm.stack().pop()?);
+                    let size: u64 = self.vm.stack().pop(decode_num)??;
+                    let n = self.vm.stack().pop(decode_bigint)?;
                     let mut bytes = if n.sign() == Sign::NoSign {
                         vec![]
                     } else {
                         n.to_signed_bytes_le()
                     };
                     if (size as usize) < bytes.len() {
-                        Err(StackError::BadArg)?;
+                        Err(StackError::BadElement)?;
                     }
                     let byte = if n.sign() == Sign::Minus { 0xff } else { 0 };
                     bytes.extend_from_slice(&vec![byte; size as usize - bytes.len()]);
-                    vm.stack().push(bytes)?;
+                    self.vm.stack().push(&bytes)?;
                 }
 
                 OP_BIN2NUM => {
-                    let n = decode_bigint(vm.stack().pop()?);
-                    vm.stack().push(encode_bigint(n))?;
+                    let n = self.vm.stack().pop(decode_bigint)?;
+                    self.vm.stack().push(&encode_bigint(n))?;
                 }
 
+                /*
                 OP_INVERT => {
                     let mut buf: Vec<u8> = vm.stack().pop()?;
                     buf.iter_mut().for_each(|b| *b = !*b);

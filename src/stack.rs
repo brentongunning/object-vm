@@ -5,6 +5,7 @@ pub trait Stack {
     fn clear(&mut self);
     fn push(&mut self, buf: &[u8]) -> Result<(), StackError>;
     fn pop<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
+    fn last<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
     fn dup(&mut self, index: usize) -> Result<(), StackError>;
     fn swap(&mut self, index: usize) -> Result<(), StackError>;
     fn depth(&self) -> usize;
@@ -31,6 +32,13 @@ impl Stack for StackImpl {
 
     fn pop<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
         match self.stack.pop() {
+            Some(v) => Ok(f(v.as_slice())),
+            None => Err(StackError::Underflow),
+        }
+    }
+
+    fn last<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
+        match self.stack.last() {
             Some(v) => Ok(f(v.as_slice())),
             None => Err(StackError::Underflow),
         }
@@ -143,6 +151,17 @@ mod tests {
         stack.push(&[4, 5, 6]).unwrap();
         assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
         assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn last() {
+        let mut stack = StackImpl::default();
+        let r = stack.last(|x| x.to_vec());
+        assert!(matches!(r, Err(StackError::Underflow)));
+        stack.push(&[1, 2, 3]).unwrap();
+        stack.push(&[4, 5, 6]).unwrap();
+        assert_eq!(stack.last(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
+        assert_eq!(stack.last(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
     }
 
     #[test]
