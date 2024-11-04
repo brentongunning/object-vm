@@ -294,31 +294,30 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.uniquifier()?;
                 }
 
-                /*
                 OP_DEPLOY => {
-                    vm.deploy()?;
+                    self.vm.deploy()?;
                 }
 
                 OP_CREATE => {
-                    vm.create()?;
+                    self.vm.create()?;
                 }
 
                 OP_CALL => {
-                    vm.call()?;
+                    self.vm.call()?;
                 }
 
                 OP_STATE => {
-                    vm.state()?;
+                    self.vm.state()?;
                 }
 
                 OP_CLASS => {
-                    vm.class()?;
+                    self.vm.class()?;
                 }
 
                 OP_FUND => {
-                    vm.fund()?;
+                    self.vm.fund()?;
                 }
-                */
+
                 _ => Err(ScriptError::BadOpcode)?,
             }
         }
