@@ -146,14 +146,14 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                 }
 
                 OP_CAT => {
-                    let b: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
-                    let a: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
+                    let b = self.vm.stack().pop(|x| x.to_vec())?;
+                    let a = self.vm.stack().pop(|x| x.to_vec())?;
                     self.vm.stack().push(&[a, b].concat())?;
                 }
 
                 OP_SPLIT => {
                     let n: u64 = self.vm.stack().pop(decode_num)??;
-                    let a: Vec<u8> = self.vm.stack().pop(|x| x.to_vec())?;
+                    let a = self.vm.stack().pop(|x| x.to_vec())?;
                     if n as usize > a.len() {
                         Err(StackError::BadElement)?;
                     }
@@ -188,31 +188,30 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.stack().push(&encode_bigint(n))?;
                 }
 
-                /*
                 OP_INVERT => {
-                    let mut buf: Vec<u8> = vm.stack().pop()?;
+                    let mut buf = self.vm.stack().pop(|x| x.to_vec())?;
                     buf.iter_mut().for_each(|b| *b = !*b);
-                    vm.stack().push(buf)?;
+                    self.vm.stack().push(&buf)?;
                 }
 
                 OP_AND | OP_OR | OP_XOR => {
-                    let b: Vec<u8> = vm.stack().pop()?;
-                    let a: Vec<u8> = vm.stack().pop()?;
+                    let b = self.vm.stack().pop(|x| x.to_vec())?;
+                    let a = self.vm.stack().pop(|x| x.to_vec())?;
                     if a.len() != b.len() {
-                        Err(StackError::BadArg)?;
+                        Err(StackError::BadElement)?;
                     }
-                    let r = match opcode {
+                    let r: Vec<u8> = match opcode {
                         OP_AND => a.iter().zip(b.iter()).map(|(x, y)| x & y).collect(),
                         OP_OR => a.iter().zip(b.iter()).map(|(x, y)| x | y).collect(),
                         OP_XOR => a.iter().zip(b.iter()).map(|(x, y)| x ^ y).collect(),
                         _ => unreachable!(),
                     };
-                    vm.stack().push(r)?;
+                    self.vm.stack().push(&r)?;
                 }
 
                 OP_LSHIFT => {
-                    let b = decode_num::<u64>(vm.stack().pop()?)? as usize;
-                    let mut a: Vec<u8> = vm.stack().pop()?;
+                    let b = self.vm.stack().pop(decode_num::<u64>)?? as usize;
+                    let mut a = self.vm.stack().pop(|x| x.to_vec())?;
                     for i in 0..a.len() {
                         if b % 8 == 0 {
                             a[i] = *a.get(i + b / 8).unwrap_or(&0);
@@ -222,12 +221,12 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                             a[i] = (l << (b % 8)) | (r >> (8 - b % 8));
                         }
                     }
-                    vm.stack().push(a)?;
+                    self.vm.stack().push(&a)?;
                 }
 
                 OP_RSHIFT => {
-                    let b = decode_num::<u64>(vm.stack().pop()?)? as usize;
-                    let mut a: Vec<u8> = vm.stack().pop()?;
+                    let b = self.vm.stack().pop(decode_num::<u64>)?? as usize;
+                    let mut a = self.vm.stack().pop(|x| x.to_vec())?;
                     for i in (0..a.len()).rev() {
                         if b % 8 == 0 {
                             a[i] = if i >= b / 8 { a[i - b / 8] } else { 0 };
@@ -237,9 +236,10 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                             a[i] = (l << (8 - b % 8)) | (r >> (b % 8));
                         }
                     }
-                    vm.stack().push(a)?;
+                    self.vm.stack().push(&a)?;
                 }
 
+                /*
                 OP_EQUAL => {
                     let b: Vec<u8> = vm.stack().pop()?;
                     let a: Vec<u8> = vm.stack().pop()?;
