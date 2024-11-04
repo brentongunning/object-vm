@@ -1,5 +1,5 @@
 use crate::{
-    core::{PubKey, Sig, PUBKEY_LEN, SIG_LEN},
+    core::{Id, PubKey, Sig, ID_LEN, PUBKEY_LEN, SIG_LEN},
     errors::{ExecuteError, ScriptError, StackError},
     opcodes::*,
     script::skip_branch,
@@ -287,14 +287,14 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     self.vm.auth()?;
                 }
 
-                /*
                 OP_UNIQUIFIER => {
-                    let location_buf = read(script, &mut i, LOCATION_LEN)?;
-                    let location: Location = location_buf.try_into().unwrap();
-                    vm.stack().push(location.to_vec())?;
-                    vm.spend()?;
+                    let revision_id_buf = read(script, &mut i, ID_LEN)?;
+                    let revision_id: Id = revision_id_buf.try_into().unwrap();
+                    self.vm.stack().push(&revision_id)?;
+                    self.vm.uniquifier()?;
                 }
 
+                /*
                 OP_DEPLOY => {
                     vm.deploy()?;
                 }
