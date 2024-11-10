@@ -8,8 +8,8 @@ pub trait Vm {
     fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
     fn create(&mut self) -> Result<(), VmError>; // args.. class_id -- object_id
     fn call(&mut self) -> Result<(), VmError>; // args.. object_id -- result..
-    fn state(&mut self) -> Result<(), VmError>; // -- state
-    fn class(&mut self) -> Result<(), VmError>; // -- class_id
+    fn state(&mut self) -> Result<(), VmError>; // object_id -- state
+    fn class(&mut self) -> Result<(), VmError>; // object_id -- class_id
 
     fn auth(&mut self) -> Result<(), VmError>; // pubkey --
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --

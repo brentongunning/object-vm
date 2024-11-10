@@ -1,5 +1,6 @@
 use crate::errors::StackError;
 use num_bigint::{BigInt, Sign};
+use std::mem::size_of;
 
 pub trait Stack {
     fn clear(&mut self);
@@ -119,6 +120,18 @@ pub fn decode_num<T: TryFrom<u64>>(elem: &[u8]) -> Result<T, StackError> {
     }
     let num_u64 = *digits.get(0).unwrap_or(&0);
     Ok(num_u64.try_into().map_err(|_| StackError::BadElement)?)
+}
+
+pub fn decode_arr<T>(elem: &[u8]) -> Result<T, StackError>
+where
+    T: Sized + Default + AsMut<[u8]>,
+{
+    if elem.len() != size_of::<T>() {
+        return Err(StackError::BadElement);
+    }
+    let mut arr = Default::default();
+    <T as AsMut<[u8]>>::as_mut(&mut arr).clone_from_slice(elem);
+    Ok(arr)
 }
 
 #[cfg(test)]
@@ -282,5 +295,13 @@ mod tests {
         assert_eq!(encode_bigint(BigInt::from(256)), vec![0, 1]);
         assert_eq!(encode_bigint(BigInt::from(-1)), vec![0xff]);
         assert_eq!(encode_bigint(BigInt::from(-2)), vec![0xfe]);
+    }
+
+    #[test]
+    fn decode_arr() {
+        use super::decode_arr;
+        assert_eq!(decode_arr::<[u8; 3]>(&[1, 2, 3]).unwrap(), [1, 2, 3]);
+        let r = decode_arr::<[u8; 3]>(&[1, 2, 3, 4]);
+        assert!(matches!(r, Err(StackError::BadElement)));
     }
 }

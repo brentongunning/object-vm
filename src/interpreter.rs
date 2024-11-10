@@ -333,10 +333,76 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{core::Tx, sig_verifier::SigVerifierImpl, stack::StackImpl, vm::VmImpl};
+    use crate::{
+        core::Tx,
+        errors::VmError,
+        sig_verifier::SigVerifierImpl,
+        stack::{decode_arr, StackImpl},
+        vm::VmImpl,
+    };
+
+    struct StubVm {
+        stack: StackImpl,
+    }
+
+    impl Vm for StubVm {
+        type Stack = StackImpl;
+
+        fn stack(&mut self) -> &mut Self::Stack {
+            &mut self.stack
+        }
+
+        fn deploy(&mut self) -> Result<(), VmError> {
+            let _code: Vec<u8> = self.stack().pop(|x| x.to_vec())?;
+            self.stack().push(&Id::default())?;
+            Ok(())
+        }
+
+        fn create(&mut self) -> Result<(), VmError> {
+            let _class_id: Id = self.stack().pop(decode_arr)??;
+            self.stack().push(&Id::default())?;
+            Ok(())
+        }
+
+        fn call(&mut self) -> Result<(), VmError> {
+            let _object_id: Id = self.stack().pop(decode_arr)??;
+            Ok(())
+        }
+
+        fn state(&mut self) -> Result<(), VmError> {
+            let _object_id: Id = self.stack().pop(decode_arr)??;
+            self.stack().push(&[])?;
+            Ok(())
+        }
+
+        fn class(&mut self) -> Result<(), VmError> {
+            let _object_id: Id = self.stack().pop(decode_arr)??;
+            self.stack().push(&Id::default())?;
+            Ok(())
+        }
+
+        fn auth(&mut self) -> Result<(), VmError> {
+            let _pubkey: PubKey = self.stack().pop(decode_arr)??;
+            Ok(())
+        }
+
+        fn uniquifier(&mut self) -> Result<(), VmError> {
+            let _revision_id: Id = self.stack().pop(decode_arr)??;
+            Ok(())
+        }
+
+        fn fund(&mut self) -> Result<(), VmError> {
+            let _object_id: Id = self.stack().pop(decode_arr)??;
+            Ok(())
+        }
+
+        fn caller(&mut self) -> Result<(), VmError> {
+            self.stack().push(&Id::default())?;
+            Ok(())
+        }
+    }
 
     #[test]
-    #[should_panic]
     fn test_interpreter() {
         let tx = Tx {
             version: 1,
