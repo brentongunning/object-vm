@@ -655,4 +655,18 @@ mod tests {
         test_ok_with_stack(&v, vec![vec![1], vec![2]]);
         test_err(&[OP_ENDIF], ScriptError::BadConditional);
     }
+
+    #[test]
+    fn op_verify() {
+        test_ok(&[OP_1, OP_VERIFY]);
+        test_ok(&[OP_0, OP_NOT, OP_VERIFY]);
+        test_ok(&[OP_PUSH + 2, 255, 255, OP_VERIFY]);
+        test_err(&[OP_0, OP_VERIFY], ExecuteError::OpVerifyFailed);
+        test_err(
+            &[OP_PUSH + 4, 0, 0, 0, 0, OP_VERIFY],
+            ExecuteError::OpVerifyFailed,
+        );
+        test_err(&[OP_1, OP_0, OP_VERIFY], ExecuteError::OpVerifyFailed);
+        test_err(&[OP_VERIFY], ExecuteError::Stack(StackError::Underflow));
+    }
 }
