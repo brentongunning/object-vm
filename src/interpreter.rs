@@ -1394,4 +1394,21 @@ mod tests {
         test_err(&[OP_GT], ExecuteError::Stack(StackError::Underflow));
         test_err(&[OP_0, OP_GT], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_blake3() {
+        let h = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
+        test_ok_with_stack(&[OP_0, OP_BLAKE3], vec![hex::decode(h).unwrap()]);
+        let h = "48fc721fbbc172e0925fa27af1671de225ba927134802998b10a1568a188652b";
+        test_ok_with_stack(&[OP_1, OP_BLAKE3], vec![hex::decode(h).unwrap()]);
+        let d = "hello".as_bytes().to_vec();
+        let h = "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f";
+        let v = [vec![OP_PUSH + d.len() as u8], d, vec![OP_BLAKE3]].concat();
+        test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
+        let d = "abcdefghijklmnopqrstuvwxyz0123456789".as_bytes().to_vec();
+        let h = "b0b92f7881543efb77f3186d8186094420a90063bb5a38c7551dfb3dac2febb1";
+        let v = [vec![OP_PUSH + d.len() as u8], d, vec![OP_BLAKE3]].concat();
+        test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
+        test_err(&[OP_BLAKE3], ExecuteError::Stack(StackError::Underflow));
+    }
 }
