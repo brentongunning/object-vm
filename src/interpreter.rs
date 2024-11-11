@@ -890,4 +890,15 @@ mod tests {
             ExecuteError::Stack(StackError::BadElement),
         );
     }
+
+    #[test]
+    fn op_size() {
+        test_ok_with_stack(&[OP_0, OP_SIZE], vec![vec![], vec![]]);
+        test_ok_with_stack(&[OP_1, OP_SIZE], vec![vec![1], vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 1, 2, OP_SIZE], vec![vec![1, 2], vec![2]]);
+        let v = [vec![OP_PUSHDATA1, 255], vec![0; 255], vec![OP_SIZE]].concat();
+        let s = vec![vec![0; 255], vec![255, 0]];
+        test_ok_with_stack(&v, s);
+        test_err(&[OP_SIZE], ExecuteError::Stack(StackError::Underflow));
+    }
 }
