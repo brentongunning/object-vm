@@ -922,4 +922,16 @@ mod tests {
         let v = vec![OP_0, OP_NUM2BIN];
         test_err(&v, ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_bin2num() {
+        test_ok_with_stack(&[OP_0, OP_BIN2NUM], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_BIN2NUM], vec![vec![1]]);
+        test_ok_with_stack(&[OP_NEG1, OP_BIN2NUM], vec![vec![0xff]]);
+        test_ok_with_stack(&[OP_PUSH + 3, 0, 0, 0, OP_BIN2NUM], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 3, 1, 0, 0, OP_BIN2NUM], vec![vec![1]]);
+        let v = [OP_PUSH + 3, 0xff, 0xff, 0xff, OP_BIN2NUM];
+        test_ok_with_stack(&v, vec![vec![0xff]]);
+        test_err(&[OP_BIN2NUM], ExecuteError::Stack(StackError::Underflow));
+    }
 }
