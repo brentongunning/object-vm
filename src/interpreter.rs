@@ -617,4 +617,32 @@ mod tests {
         let v = [OP_0, OP_0, OP_IF, OP_IF, OP_ENDIF];
         test_err(&v, ScriptError::BadConditional);
     }
+
+    #[test]
+    fn op_else() {
+        test_ok(&[OP_0, OP_IF, OP_ELSE, OP_ENDIF]);
+        test_ok(&[OP_1, OP_IF, OP_ELSE, OP_ENDIF]);
+        test_ok(&[
+            OP_0, OP_IF, OP_0, OP_VERIFY, OP_ELSE, OP_1, OP_VERIFY, OP_ENDIF,
+        ]);
+        test_ok(&[
+            OP_0, OP_0, OP_IF, OP_0, OP_VERIFY, OP_ELSE, OP_IF, OP_0, OP_VERIFY, OP_ELSE, OP_ENDIF,
+            OP_ENDIF,
+        ]);
+        let v = [OP_0, OP_IF, OP_ELSE, OP_0, OP_VERIFY, OP_ENDIF];
+        test_err(&v, ExecuteError::OpVerifyFailed);
+        let v = [
+            OP_0, OP_1, OP_IF, OP_IF, OP_ELSE, OP_0, OP_VERIFY, OP_ENDIF, OP_ENDIF,
+        ];
+        test_err(&v, ExecuteError::OpVerifyFailed);
+        let v = [
+            OP_1, OP_0, OP_IF, OP_ELSE, OP_IF, OP_0, OP_VERIFY, OP_ENDIF, OP_ENDIF,
+        ];
+        test_err(&v, ExecuteError::OpVerifyFailed);
+        test_err(&[OP_ELSE], ScriptError::BadConditional);
+        test_err(&[OP_1, OP_IF, OP_ELSE], ScriptError::BadConditional);
+        test_err(&[OP_0, OP_ELSE], ScriptError::BadConditional);
+        let v = [OP_0, OP_0, OP_IF, OP_ELSE, OP_IF, OP_ENDIF];
+        test_err(&v, ScriptError::BadConditional);
+    }
 }
