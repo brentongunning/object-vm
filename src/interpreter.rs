@@ -613,6 +613,14 @@ mod tests {
         test_with_mocks(script, setup_vm, |_| {}, None, None, Err(e));
     }
 
+    fn test_ok_with_mock_vm_and_stack(
+        script: &[u8],
+        setup_vm: impl FnOnce(&mut MockVm),
+        stack: Vec<Vec<u8>>,
+    ) {
+        test_with_mocks(script, setup_vm, |_| {}, Some(stack), None, Ok(()));
+    }
+
     fn test_ok_with_mock_vm_and_sig_verifier(
         script: &[u8],
         setup_vm: impl FnOnce(&mut MockVm),
@@ -1794,6 +1802,33 @@ mod tests {
                 );
             },
             ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+    }
+
+    #[test]
+    fn op_deploy() {
+        test_ok_with_mock_vm_and_stack(
+            &[vec![OP_2], vec![OP_DEPLOY]].concat(),
+            |mock_vm| {
+                mock_vm.expect("deploy", vec![vec![2]], vec![vec![1; ID_LEN]], Ok(()));
+            },
+            vec![vec![1; ID_LEN]],
+        );
+        test_err_with_mock_vm(
+            &[vec![OP_2], vec![OP_DEPLOY]].concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "deploy",
+                    vec![vec![2]],
+                    vec![vec![1; ID_LEN]],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+        test_err(
+            &[OP_DEPLOY],
+            ExecuteError::Vm(VmError::Stack(StackError::Underflow)),
         );
     }
 }
