@@ -901,4 +901,25 @@ mod tests {
         test_ok_with_stack(&v, s);
         test_err(&[OP_SIZE], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_num2bin() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_NUM2BIN], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_3, OP_NUM2BIN], vec![vec![0, 0, 0]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_NUM2BIN], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_3, OP_NUM2BIN], vec![vec![1, 0, 0]]);
+        test_ok_with_stack(&[OP_NEG1, OP_1, OP_NUM2BIN], vec![vec![0xff]]);
+        test_ok_with_stack(&[OP_NEG1, OP_3, OP_NUM2BIN], vec![vec![0xff, 0xff, 0xff]]);
+        test_ok_with_stack(&[OP_PUSH + 3, 0, 0, 0, OP_0, OP_NUM2BIN], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 3, 0, 0, 0, OP_1, OP_NUM2BIN], vec![vec![0]]);
+        let v = vec![OP_1, OP_0, OP_NUM2BIN];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+        let v = vec![OP_0, OP_NEG1, OP_NUM2BIN];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+        let v = [OP_PUSH + 2, 0, 1, OP_1, OP_NUM2BIN];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+        test_err(&[OP_NUM2BIN], ExecuteError::Stack(StackError::Underflow));
+        let v = vec![OP_0, OP_NUM2BIN];
+        test_err(&v, ExecuteError::Stack(StackError::Underflow));
+    }
 }
