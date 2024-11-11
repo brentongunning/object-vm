@@ -605,6 +605,14 @@ mod tests {
         assert!(interpreter.sig_verifier.expectations.is_empty());
     }
 
+    fn test_ok_with_mock_vm(script: &[u8], setup_vm: impl FnOnce(&mut MockVm)) {
+        test_with_mocks(script, setup_vm, |_| {}, None, None, Ok(()));
+    }
+
+    fn test_err_with_mock_vm(script: &[u8], setup_vm: impl FnOnce(&mut MockVm), e: ExecuteError) {
+        test_with_mocks(script, setup_vm, |_| {}, None, None, Err(e));
+    }
+
     fn test_ok_with_mock_vm_and_sig_verifier(
         script: &[u8],
         setup_vm: impl FnOnce(&mut MockVm),
@@ -1761,6 +1769,31 @@ mod tests {
         test_err(
             &[vec![OP_SIGNTO], vec![0; PUBKEY_LEN + SIG_LEN - 1]].concat(),
             ScriptError::UnexpectedEndOfScript,
+        );
+    }
+
+    #[test]
+    fn op_uniquifier() {
+        test_ok(&[vec![OP_UNIQUIFIER], vec![0; ID_LEN]].concat());
+        test_err(&[OP_UNIQUIFIER], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_UNIQUIFIER, 0], ScriptError::UnexpectedEndOfScript);
+        let v = [vec![OP_UNIQUIFIER], vec![0; ID_LEN - 1]].concat();
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [vec![OP_UNIQUIFIER], vec![1; ID_LEN]].concat();
+        test_ok_with_mock_vm(&v, |mock_vm| {
+            mock_vm.expect("uniquifier", vec![vec![1; ID_LEN]], vec![], Ok(()));
+        });
+        test_err_with_mock_vm(
+            &v,
+            |mock_vm| {
+                mock_vm.expect(
+                    "uniquifier",
+                    vec![vec![1; ID_LEN]],
+                    vec![],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
         );
     }
 }
