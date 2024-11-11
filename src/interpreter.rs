@@ -482,4 +482,24 @@ mod tests {
             vec![],
         );
     }
+
+    #[test]
+    fn invalid_unexecuted_branch() {
+        let v = [OP_0, OP_IF, 161, OP_ELSE, OP_ENDIF];
+        test_err(&v, ScriptError::BadOpcode);
+        let v = [OP_1, OP_1, OP_IF, OP_IF, OP_ELSE, 200, OP_ENDIF, OP_ENDIF];
+        test_err(&v, ScriptError::BadOpcode);
+        let v = [OP_0, OP_IF, OP_0, OP_1, 255, OP_ENDIF];
+        test_err(&v, ScriptError::BadOpcode);
+        let v = [OP_0, OP_IF, OP_UNIQUIFIER, OP_ENDIF];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [OP_0, OP_IF, OP_PUSH + 75, OP_ENDIF];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [OP_0, OP_IF, OP_PUSHDATA1, 10, OP_ENDIF];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [OP_0, OP_IF, OP_PUSHDATA2, OP_ENDIF];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [OP_0, OP_IF, OP_PUSHDATA4, OP_ENDIF];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+    }
 }
