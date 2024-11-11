@@ -334,11 +334,8 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
 mod tests {
     use super::*;
     use crate::{
-        core::Tx,
-        errors::VmError,
-        sig_verifier::SigVerifierImpl,
+        errors::{VerifyError, VmError},
         stack::{decode_arr, StackImpl},
-        vm::VmImpl,
     };
 
     struct StubVm {
@@ -402,16 +399,54 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_interpreter() {
-        let tx = Tx {
-            version: 1,
-            script: vec![0x01, 0x02, 0x03],
-        };
-        let sig_verifier = SigVerifierImpl::new(&tx);
+    struct StubSigVerifier {}
+
+    impl SigVerifier for StubSigVerifier {
+        fn verify(
+            &mut self,
+            _pubkey: &PubKey,
+            _sig: &Sig,
+            _index: usize,
+        ) -> Result<(), VerifyError> {
+            Ok(())
+        }
+    }
+
+    fn test_with_stubs(
+        script: &[u8],
+        stack_elements: Option<Vec<Vec<u8>>>,
+        altstack_elements: Option<Vec<Vec<u8>>>,
+        result: Result<(), ExecuteError>,
+    ) {
+        let sig_verifier = StubSigVerifier {};
         let stack = StackImpl::default();
-        let vm = VmImpl::new(stack);
+        let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
-        interpreter.execute(&tx.script).ok();
+        match interpreter.execute(script) {
+            Ok(()) => assert!(result.is_ok()),
+            Err(e) => assert_eq!(format!("{:?}", e), format!("{:?}", result.unwrap_err())),
+        }
+        if let Some(stack_elements) = stack_elements {
+            for elem in stack_elements.iter().rev() {
+                assert_eq!(&interpreter.vm.stack().pop(|x| x.to_vec()).unwrap(), elem);
+            }
+            assert_eq!(interpreter.vm.stack().depth(), 0);
+        }
+        if let Some(altstack_elements) = altstack_elements {
+            for elem in altstack_elements.iter().rev() {
+                interpreter.vm.stack().move_from_alt_stack().unwrap();
+                assert_eq!(&interpreter.vm.stack().pop(|x| x.to_vec()).unwrap(), elem);
+            }
+            assert!(interpreter.vm.stack().move_from_alt_stack().is_err());
+        }
+    }
+
+    fn test_ok(script: &[u8]) {
+        test_with_stubs(script, None, None, Ok(()));
+    }
+
+    #[test]
+    fn empty() {
+        test_ok(&[]);
     }
 }
