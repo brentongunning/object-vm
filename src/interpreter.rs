@@ -502,4 +502,14 @@ mod tests {
         let v = [OP_0, OP_IF, OP_PUSHDATA4, OP_ENDIF];
         test_err(&v, ScriptError::UnexpectedEndOfScript);
     }
+
+    #[test]
+    fn op_num() {
+        test_ok_with_stack(&[OP_0], vec![vec![]]);
+        test_ok_with_stack(&[OP_NEG1], vec![vec![0xff]]);
+        test_ok_with_stack(&[OP_1], vec![vec![1]]);
+        test_ok_with_stack(&[OP_16], vec![vec![16]]);
+        let v = [OP_0, OP_NEG1, OP_1, OP_16];
+        test_ok_with_stack(&v, vec![vec![], vec![0xff], vec![1], vec![16]]);
+    }
 }
