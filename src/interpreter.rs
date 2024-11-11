@@ -965,4 +965,22 @@ mod tests {
         let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0, OP_AND];
         test_err(&v, ExecuteError::Stack(StackError::BadElement));
     }
+
+    #[test]
+    fn op_or() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_OR], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 0, OP_1, OP_OR], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_PUSH + 1, 0, OP_OR], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_OR], vec![vec![1]]);
+        let v = [OP_PUSH + 2, 1, 2, OP_PUSH + 2, 0, 0xff, OP_OR];
+        test_ok_with_stack(&v, vec![vec![1, 0xff]]);
+        let v = [OP_PUSH + 2, 1, 2, OP_PUSH + 2, 0xff, 0, OP_OR];
+        test_ok_with_stack(&v, vec![vec![0xff, 2]]);
+        test_err(&[OP_OR], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_OR], ExecuteError::Stack(StackError::Underflow));
+        let v = vec![OP_0, OP_1, OP_OR];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0, OP_OR];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+    }
 }
