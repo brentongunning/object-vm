@@ -585,4 +585,18 @@ mod tests {
         let v = [vec![OP_PUSHDATA4, 0, 0, 1, 0], vec![0; 65535]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
     }
+
+    #[test]
+    fn op_not() {
+        test_ok_with_stack(&[OP_0, OP_NOT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_NEG1, OP_NOT], vec![vec![]]);
+        test_ok_with_stack(&[OP_16, OP_NOT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 0, OP_NOT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 0, OP_NOT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 1, OP_NOT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 1, OP_NOT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 255, OP_NOT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 255, OP_NOT], vec![vec![]]);
+        test_err(&[OP_NOT], ExecuteError::Stack(StackError::Underflow));
+    }
 }
