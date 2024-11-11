@@ -512,4 +512,20 @@ mod tests {
         let v = [OP_0, OP_NEG1, OP_1, OP_16];
         test_ok_with_stack(&v, vec![vec![], vec![0xff], vec![1], vec![16]]);
     }
+
+    #[test]
+    fn op_push() {
+        test_ok_with_stack(&[OP_PUSH + 0], vec![vec![]]);
+        let v = [vec![OP_PUSH + 75], vec![0; 75]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 75]]);
+        let v = [OP_PUSH + 0, OP_PUSH + 0, OP_PUSH + 0];
+        test_ok_with_stack(&v, vec![vec![], vec![], vec![]]);
+        let v = [OP_PUSH + 1, 1, OP_PUSH + 1, 2, OP_PUSH + 1, 3];
+        test_ok_with_stack(&v, vec![vec![1], vec![2], vec![3]]);
+        let v = [OP_PUSH + 1, 0, OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0];
+        test_ok_with_stack(&v, vec![vec![0], vec![0, 0], vec![0, 0, 0]]);
+        test_err(&[OP_PUSH + 1], ScriptError::UnexpectedEndOfScript);
+        let v = [vec![OP_PUSH + 75], vec![0; 74]].concat();
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+    }
 }
