@@ -399,6 +399,91 @@ mod tests {
         }
     }
 
+    struct MockVm {
+        stack: StackImpl,
+        expectations: Vec<(
+            &'static str,
+            Vec<Vec<u8>>,
+            Vec<Vec<u8>>,
+            Result<(), VmError>,
+        )>,
+    }
+
+    impl MockVm {
+        fn new(stack: StackImpl) -> Self {
+            Self {
+                stack,
+                expectations: vec![],
+            }
+        }
+
+        fn expect(
+            &mut self,
+            name: &'static str,
+            pops: Vec<Vec<u8>>,
+            pushes: Vec<Vec<u8>>,
+            result: Result<(), VmError>,
+        ) {
+            self.expectations.push((name, pops, pushes, result))
+        }
+
+        fn check_expectation(&mut self, name: &'static str) -> Result<(), VmError> {
+            let (expected_name, expected_pops, pushes, result) = self.expectations.remove(0);
+            assert_eq!(name, expected_name);
+            for pop in expected_pops {
+                assert_eq!(self.stack.pop(|x| x.to_vec()).unwrap(), pop);
+            }
+            for push in pushes {
+                self.stack.push(&push).unwrap();
+            }
+            result
+        }
+    }
+
+    impl Vm for MockVm {
+        type Stack = StackImpl;
+
+        fn stack(&mut self) -> &mut Self::Stack {
+            &mut self.stack
+        }
+
+        fn deploy(&mut self) -> Result<(), VmError> {
+            self.check_expectation("deploy")
+        }
+
+        fn create(&mut self) -> Result<(), VmError> {
+            self.check_expectation("create")
+        }
+
+        fn call(&mut self) -> Result<(), VmError> {
+            self.check_expectation("call")
+        }
+
+        fn state(&mut self) -> Result<(), VmError> {
+            self.check_expectation("state")
+        }
+
+        fn class(&mut self) -> Result<(), VmError> {
+            self.check_expectation("class")
+        }
+
+        fn auth(&mut self) -> Result<(), VmError> {
+            self.check_expectation("auth")
+        }
+
+        fn uniquifier(&mut self) -> Result<(), VmError> {
+            self.check_expectation("uniquifier")
+        }
+
+        fn fund(&mut self) -> Result<(), VmError> {
+            self.check_expectation("fund")
+        }
+
+        fn caller(&mut self) -> Result<(), VmError> {
+            self.check_expectation("caller")
+        }
+    }
+
     struct StubSigVerifier {}
 
     impl SigVerifier for StubSigVerifier {
@@ -409,6 +494,34 @@ mod tests {
             _index: usize,
         ) -> Result<(), VerifyError> {
             Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct MockSigVerifier {
+        expectations: Vec<(PubKey, Sig, usize, Result<(), VerifyError>)>,
+    }
+
+    impl MockSigVerifier {
+        fn expect(
+            &mut self,
+            pubkey: PubKey,
+            sig: Sig,
+            index: usize,
+            result: Result<(), VerifyError>,
+        ) {
+            self.expectations.push((pubkey, sig, index, result));
+        }
+    }
+
+    impl SigVerifier for MockSigVerifier {
+        fn verify(&mut self, pubkey: &PubKey, sig: &Sig, index: usize) -> Result<(), VerifyError> {
+            let (expected_pubkey, expected_sig, expected_index, result) =
+                self.expectations.remove(0);
+            assert_eq!(pubkey, &expected_pubkey);
+            assert_eq!(sig, &expected_sig);
+            assert_eq!(index, expected_index);
+            result
         }
     }
 
@@ -455,6 +568,58 @@ mod tests {
 
     fn test_ok_with_altstack(script: &[u8], stack: Vec<Vec<u8>>, altstack: Vec<Vec<u8>>) {
         test_with_stubs(script, Some(stack), Some(altstack), Ok(()));
+    }
+
+    fn test_with_mocks(
+        script: &[u8],
+        setup_vm: impl FnOnce(&mut MockVm),
+        setup_sig_verifier: impl FnOnce(&mut MockSigVerifier),
+        stack_elements: Option<Vec<Vec<u8>>>,
+        altstack_elements: Option<Vec<Vec<u8>>>,
+        result: Result<(), ExecuteError>,
+    ) {
+        let mut sig_verifier = MockSigVerifier::default();
+        let stack = StackImpl::default();
+        let mut vm = MockVm::new(stack);
+        setup_vm(&mut vm);
+        setup_sig_verifier(&mut sig_verifier);
+        let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
+        match interpreter.execute(script) {
+            Ok(()) => assert!(result.is_ok()),
+            Err(e) => assert_eq!(format!("{:?}", e), format!("{:?}", result.unwrap_err())),
+        }
+        if let Some(stack_elements) = stack_elements {
+            for elem in stack_elements.iter().rev() {
+                assert_eq!(&interpreter.vm.stack().pop(|x| x.to_vec()).unwrap(), elem);
+            }
+            assert_eq!(interpreter.vm.stack().depth(), 0);
+        }
+        if let Some(altstack_elements) = altstack_elements {
+            for elem in altstack_elements.iter().rev() {
+                interpreter.vm.stack().move_from_alt_stack().unwrap();
+                assert_eq!(&interpreter.vm.stack().pop(|x| x.to_vec()).unwrap(), elem);
+            }
+            assert!(interpreter.vm.stack().move_from_alt_stack().is_err());
+        }
+        assert!(interpreter.vm.expectations.is_empty());
+        assert!(interpreter.sig_verifier.expectations.is_empty());
+    }
+
+    fn test_ok_with_mock_vm_and_sig_verifier(
+        script: &[u8],
+        setup_vm: impl FnOnce(&mut MockVm),
+        setup_sig_verifier: impl FnOnce(&mut MockSigVerifier),
+    ) {
+        test_with_mocks(script, setup_vm, setup_sig_verifier, None, None, Ok(()));
+    }
+
+    fn test_err_with_mock_vm_and_sig_verifier(
+        script: &[u8],
+        setup_vm: impl FnOnce(&mut MockVm),
+        setup_sig_verifier: impl FnOnce(&mut MockSigVerifier),
+        e: ExecuteError,
+    ) {
+        test_with_mocks(script, setup_vm, setup_sig_verifier, None, None, Err(e));
     }
 
     #[test]
@@ -1427,5 +1592,175 @@ mod tests {
         let v = [vec![OP_PUSH + d.len() as u8], d, vec![OP_SHA256]].concat();
         test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
         test_err(&[OP_SHA256], ExecuteError::Stack(StackError::Underflow));
+    }
+
+    #[test]
+    fn op_sign() {
+        test_ok(&[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat());
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |mock_vm| {
+                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
+            },
+        );
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[
+                vec![OP_0],
+                vec![OP_SIGN],
+                vec![1; PUBKEY_LEN],
+                vec![2; SIG_LEN],
+                vec![OP_1],
+                vec![OP_SIGN],
+                vec![3; PUBKEY_LEN],
+                vec![4; SIG_LEN],
+                vec![OP_2],
+            ]
+            .concat(),
+            |mock_vm| {
+                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 1, Ok(()));
+                mock_sig_verifier.expect([3; PUBKEY_LEN], [4; SIG_LEN], 99, Ok(()));
+            },
+        );
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[
+                vec![OP_0, OP_IF, OP_SIGN],
+                vec![1; PUBKEY_LEN],
+                vec![2; SIG_LEN],
+                vec![OP_ENDIF],
+            ]
+            .concat(),
+            |_mock_vm| {},
+            |_mock_sig_verifier| {},
+        );
+        test_err_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "auth",
+                    vec![vec![1; PUBKEY_LEN]],
+                    vec![],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+        test_err_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |_mock_vm| {},
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect(
+                    [1; PUBKEY_LEN],
+                    [2; SIG_LEN],
+                    0,
+                    Err(VerifyError::BadSignature),
+                );
+            },
+            ExecuteError::Verify(VerifyError::BadSignature),
+        );
+        test_err(&[OP_SIGN], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_0, OP_SIGN], ScriptError::UnexpectedEndOfScript);
+        test_err(
+            &[vec![OP_SIGN], vec![0; PUBKEY_LEN]].concat(),
+            ScriptError::UnexpectedEndOfScript,
+        );
+        test_err(
+            &[vec![OP_SIGN], vec![0; PUBKEY_LEN + SIG_LEN - 1]].concat(),
+            ScriptError::UnexpectedEndOfScript,
+        );
+    }
+
+    #[test]
+    fn op_signto() {
+        test_ok(&[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat());
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |mock_vm| {
+                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
+            },
+        );
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[
+                vec![OP_0],
+                vec![OP_SIGNTO],
+                vec![1; PUBKEY_LEN],
+                vec![2; SIG_LEN],
+                vec![OP_1],
+                vec![OP_SIGNTO],
+                vec![3; PUBKEY_LEN],
+                vec![4; SIG_LEN],
+                vec![OP_2],
+            ]
+            .concat(),
+            |mock_vm| {
+                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 1, Ok(()));
+                mock_sig_verifier.expect([3; PUBKEY_LEN], [4; SIG_LEN], 99, Ok(()));
+            },
+        );
+        test_ok_with_mock_vm_and_sig_verifier(
+            &[
+                vec![OP_0, OP_IF, OP_SIGNTO],
+                vec![1; PUBKEY_LEN],
+                vec![2; SIG_LEN],
+                vec![OP_ENDIF],
+            ]
+            .concat(),
+            |_mock_vm| {},
+            |_mock_sig_verifier| {},
+        );
+        test_err_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "auth",
+                    vec![vec![1; PUBKEY_LEN]],
+                    vec![],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+        test_err_with_mock_vm_and_sig_verifier(
+            &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
+            |_mock_vm| {},
+            |mock_sig_verifier| {
+                mock_sig_verifier.expect(
+                    [1; PUBKEY_LEN],
+                    [2; SIG_LEN],
+                    0,
+                    Err(VerifyError::BadSignature),
+                );
+            },
+            ExecuteError::Verify(VerifyError::BadSignature),
+        );
+        test_err(&[OP_SIGNTO], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_0, OP_SIGNTO], ScriptError::UnexpectedEndOfScript);
+        test_err(
+            &[vec![OP_SIGNTO], vec![0; PUBKEY_LEN]].concat(),
+            ScriptError::UnexpectedEndOfScript,
+        );
+        test_err(
+            &[vec![OP_SIGNTO], vec![0; PUBKEY_LEN + SIG_LEN - 1]].concat(),
+            ScriptError::UnexpectedEndOfScript,
+        );
     }
 }
