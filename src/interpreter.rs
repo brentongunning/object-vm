@@ -1008,4 +1008,79 @@ mod tests {
         let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0, OP_XOR];
         test_err(&v, ExecuteError::Stack(StackError::BadElement));
     }
+
+    #[test]
+    fn op_lshift() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_LSHIFT], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_LSHIFT], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_16, OP_LSHIFT], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_0, OP_LSHIFT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_PUSH + 1, 0, OP_LSHIFT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 0, OP_0, OP_LSHIFT], vec![vec![0]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 1, OP_0, OP_LSHIFT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 255, OP_0, OP_LSHIFT], vec![vec![255]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 0, OP_0, OP_LSHIFT], vec![vec![0, 0]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 1, 2, OP_0, OP_LSHIFT], vec![vec![1, 2]]);
+        let v = [OP_PUSH + 2, 254, 255, OP_0, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![254, 255]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 27, 93, OP_8, OP_LSHIFT], vec![vec![93, 0]]);
+        let v = [OP_PUSH + 3, 27, 93, 155, OP_8, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![93, 155, 0]]);
+        let v = [OP_PUSH + 3, 27, 93, 155, OP_16, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![155, 0, 0]]);
+        let v = [OP_PUSH + 1, 0b11001110, OP_1, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b10011100]]);
+        let v = [OP_PUSH + 1, 0b11001110, OP_3, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b01110000]]);
+        let v = [OP_PUSH + 1, 0b11001101, OP_7, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b10000000]]);
+        let v = [OP_PUSH + 2, 0b11001110, 0b10101101, OP_1, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b10011101, 0b01011010]]);
+        let v = [OP_PUSH + 2, 0b11001110, 0b10101101, OP_3, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b01110101, 0b01101000]]);
+        let v = [OP_PUSH + 2, 0b11001110, 0b10101101, OP_7, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0b01010110, 0b10000000]]);
+        let v = [
+            OP_PUSH + 3,
+            0b00000001,
+            0b00000010,
+            0b00000100,
+            OP_7,
+            OP_LSHIFT,
+        ];
+        test_ok_with_stack(&v, vec![vec![0b10000001, 0b00000010, 0b00000000]]);
+        let v = [
+            OP_PUSH + 4,
+            0b10000001,
+            0b10000010,
+            0b10000100,
+            0b10001000,
+            OP_9,
+            OP_LSHIFT,
+        ];
+        test_ok_with_stack(&v, vec![vec![0b00000101, 0b00001001, 0b00010000, 0]]);
+        let v = [
+            OP_PUSH + 4,
+            0b10000001,
+            0b10000010,
+            0b10000100,
+            0b10001000,
+            OP_PUSH + 1,
+            17,
+            OP_LSHIFT,
+        ];
+        test_ok_with_stack(&v, vec![vec![0b00001001, 0b00010000, 0, 0]]);
+        let v = [OP_PUSH + 2, 0xff, 0xff, OP_16, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0, 0]]);
+        let v = [OP_PUSH + 2, 0xff, 0xff, OP_PUSH + 1, 17, OP_LSHIFT];
+        test_ok_with_stack(&v, vec![vec![0, 0]]);
+        test_err(
+            &[OP_0, OP_NEG1, OP_LSHIFT],
+            ExecuteError::Stack(StackError::BadElement),
+        );
+        test_err(
+            &[OP_0, OP_PUSH + 2, 0xff, 0xff, OP_LSHIFT],
+            ExecuteError::Stack(StackError::BadElement),
+        );
+    }
 }
