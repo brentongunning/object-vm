@@ -983,4 +983,29 @@ mod tests {
         let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0, OP_OR];
         test_err(&v, ExecuteError::Stack(StackError::BadElement));
     }
+
+    #[test]
+    fn op_xor() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_XOR], vec![vec![]]);
+        let v = [OP_PUSH + 1, 0, OP_PUSH + 1, 0b11001110, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0b11001110]]);
+        let v = [OP_PUSH + 1, 0b11001110, OP_PUSH + 1, 0, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0b11001110]]);
+        let v = [OP_PUSH + 1, 0xff, OP_PUSH + 1, 0b11001110, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0b00110001]]);
+        let v = [OP_PUSH + 1, 0b11001110, OP_PUSH + 1, 0xff, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0b00110001]]);
+        let v = [OP_PUSH + 2, 0, 0xff, OP_PUSH + 2, 0xff, 0xff, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0xff, 0]]);
+        let v = [OP_PUSH + 2, 0xff, 0, OP_PUSH + 2, 0xff, 0xff, OP_XOR];
+        test_ok_with_stack(&v, vec![vec![0, 0xff]]);
+        test_err(&[OP_XOR], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_XOR], ExecuteError::Stack(StackError::Underflow));
+        test_err(
+            &[OP_0, OP_1, OP_XOR],
+            ExecuteError::Stack(StackError::BadElement),
+        );
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 3, 0, 0, 0, OP_XOR];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+    }
 }
