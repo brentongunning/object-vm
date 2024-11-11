@@ -645,4 +645,14 @@ mod tests {
         let v = [OP_0, OP_0, OP_IF, OP_ELSE, OP_IF, OP_ENDIF];
         test_err(&v, ScriptError::BadConditional);
     }
+
+    #[test]
+    fn op_endif() {
+        let v = [
+            OP_1, OP_1, OP_1, OP_IF, OP_IF, OP_1, OP_ELSE, OP_0, OP_VERIFY, OP_ENDIF, OP_IF, OP_2,
+            OP_ELSE, OP_0, OP_VERIFY, OP_ENDIF, OP_ELSE, OP_0, OP_VERIFY, OP_ENDIF,
+        ];
+        test_ok_with_stack(&v, vec![vec![1], vec![2]]);
+        test_err(&[OP_ENDIF], ScriptError::BadConditional);
+    }
 }
