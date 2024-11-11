@@ -445,8 +445,19 @@ mod tests {
         test_with_stubs(script, None, None, Ok(()));
     }
 
+
+    fn test_err(script: &[u8], e: impl Into<ExecuteError>) {
+        test_with_stubs(script, None, None, Err(e.into()));
+    }
+
     #[test]
     fn empty() {
         test_ok(&[]);
+    }
+
+    #[test]
+    fn invalid_opcode() {
+        test_err(&[156], ScriptError::BadOpcode);
+        test_err(&[255], ScriptError::BadOpcode);
     }
 }
