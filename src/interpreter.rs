@@ -1273,4 +1273,43 @@ mod tests {
         test_err(&[OP_0, OP_0, OP_DIV], ExecuteError::DivideByZero);
         test_err(&[OP_0, OP_PUSH + 1, 0, OP_DIV], ExecuteError::DivideByZero);
     }
+
+    #[test]
+    fn op_mod() {
+        test_ok_with_stack(&[OP_0, OP_1, OP_MOD], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_MOD], vec![vec![]]);
+        test_ok_with_stack(&[OP_2, OP_1, OP_MOD], vec![vec![]]);
+        test_ok_with_stack(&[OP_3, OP_2, OP_MOD], vec![vec![1]]);
+        test_ok_with_stack(&[OP_2, OP_3, OP_MOD], vec![vec![2]]);
+        test_ok_with_stack(&[OP_0, OP_3, OP_MOD], vec![vec![]]);
+        test_ok_with_stack(&[OP_14, OP_16, OP_MOD], vec![vec![14]]);
+        test_ok_with_stack(&[OP_1, OP_NEG1, OP_MOD], vec![vec![]]);
+        test_ok_with_stack(&[OP_3, OP_2, OP_NEG1, OP_MUL, OP_MOD], vec![vec![1]]);
+        test_ok_with_stack(&[OP_9, OP_6, OP_MOD], vec![vec![3]]);
+        test_ok_with_stack(&[OP_16, OP_14, OP_MOD], vec![vec![2]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 27, OP_7, OP_MOD], vec![vec![6]]);
+        let v = [OP_PUSH + 1, 27, OP_7, OP_NEG1, OP_MUL, OP_MOD];
+        test_ok_with_stack(&v, vec![vec![6]]);
+        let v = [OP_PUSH + 1, 27, OP_NEG1, OP_MUL, OP_7, OP_MOD];
+        test_ok_with_stack(&v, vec![vec![0xfa]]);
+        let v = [
+            OP_PUSH + 1,
+            27,
+            OP_NEG1,
+            OP_MUL,
+            OP_7,
+            OP_NEG1,
+            OP_MUL,
+            OP_MOD,
+        ];
+        test_ok_with_stack(&v, vec![vec![0xfa]]);
+        let v = [OP_PUSH + 2, 1, 0, OP_PUSH + 2, 1, 0, OP_MOD];
+        test_ok_with_stack(&v, vec![vec![]]);
+        let v = [OP_PUSH + 2, 0xff, 0, OP_2, OP_MOD];
+        test_ok_with_stack(&v, vec![vec![1]]);
+        test_err(&[OP_MOD], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_1, OP_MOD], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_1, OP_0, OP_MOD], ExecuteError::DivideByZero);
+        test_err(&[OP_1, OP_PUSH + 1, 0, OP_MOD], ExecuteError::DivideByZero);
+    }
 }
