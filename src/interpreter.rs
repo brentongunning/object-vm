@@ -669,4 +669,37 @@ mod tests {
         test_err(&[OP_1, OP_0, OP_VERIFY], ExecuteError::OpVerifyFailed);
         test_err(&[OP_VERIFY], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_dupn() {
+        test_ok_with_stack(&[OP_0, OP_DUPN], vec![]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_DUPN], vec![vec![], vec![]]);
+        let v = [OP_0, OP_1, OP_2, OP_DUPN];
+        test_ok_with_stack(&v, vec![vec![], vec![1], vec![], vec![1]]);
+        let v = [
+            OP_0, OP_1, OP_2, OP_3, OP_4, OP_5, OP_6, OP_7, OP_8, OP_9, OP_10, OP_DUPN,
+        ];
+        let s = vec![
+            vec![],
+            vec![1],
+            vec![2],
+            vec![3],
+            vec![4],
+            vec![5],
+            vec![6],
+            vec![7],
+            vec![8],
+            vec![9],
+        ];
+        test_ok_with_stack(&v, [s.clone(), s].concat());
+        test_ok_with_stack(&[OP_0, OP_1, OP_1, OP_DUPN], vec![vec![], vec![1], vec![1]]);
+        let v = [OP_1, OP_PUSH + 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, OP_DUPN];
+        test_ok_with_stack(&v, vec![vec![1], vec![1]]);
+        let v = [OP_0, OP_1, OP_2, OP_2, OP_DUPN];
+        test_ok_with_stack(&v, vec![vec![], vec![1], vec![2], vec![1], vec![2]]);
+        test_err(&[OP_DUPN], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_1, OP_DUPN], ExecuteError::Stack(StackError::Underflow));
+        let v = [OP_PUSH + 9, 0, 0, 0, 0, 0, 0, 0, 0, 1, OP_DUPN];
+        test_err(&v, ExecuteError::Stack(StackError::BadElement));
+    }
 }

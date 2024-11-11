@@ -46,12 +46,12 @@ impl Stack for StackImpl {
     }
 
     fn dup(&mut self, index: usize) -> Result<(), StackError> {
-        if index >= self.stack.len() {
+        if index > self.stack.len() {
             return Err(StackError::Underflow);
         }
-        let index = self.stack.len() - 1 - index;
-        let elem = self.stack.get(index).unwrap().clone();
-        self.stack.push(elem);
+        for i in self.stack.len() - index..self.stack.len() {
+            self.stack.push(self.stack[i].clone());
+        }
         Ok(())
     }
 
@@ -180,18 +180,35 @@ mod tests {
     #[test]
     fn dup() {
         let mut stack = StackImpl::default();
-        let r = stack.dup(0);
-        assert!(matches!(r, Err(StackError::Underflow)));
-        stack.push(&[1, 2, 3]).unwrap();
-        stack.push(&[4, 5, 6]).unwrap();
         stack.dup(0).unwrap();
+        stack.push(&[1, 2, 3]).unwrap();
+        stack.dup(1).unwrap();
+        stack.push(&[4, 5, 6]).unwrap();
         stack.dup(2).unwrap();
-        assert_eq!(stack.depth(), 4);
-        assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
-        assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
-        assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
-        assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
-        assert!(matches!(stack.dup(0), Err(StackError::Underflow)));
+        assert_eq!(
+            stack.stack,
+            vec![
+                vec![1, 2, 3],
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+                vec![1, 2, 3],
+                vec![4, 5, 6]
+            ]
+        );
+        stack.dup(3).unwrap();
+        assert_eq!(
+            stack.stack,
+            vec![
+                vec![1, 2, 3],
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+                vec![4, 5, 6],
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+            ]
+        );
     }
 
     #[test]
