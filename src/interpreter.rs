@@ -1158,4 +1158,26 @@ mod tests {
             ExecuteError::Stack(StackError::BadElement),
         );
     }
+
+    #[test]
+    fn op_equal() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_EQUAL], vec![vec![1]]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_EQUAL], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_0, OP_EQUAL], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_EQUAL], vec![vec![1]]);
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 2, 0, 0, OP_EQUAL];
+        test_ok_with_stack(&v, vec![vec![1]]);
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 2, 0, 1, OP_EQUAL];
+        test_ok_with_stack(&v, vec![vec![]]);
+        let v = [OP_PUSH + 2, 0, 1, OP_PUSH + 2, 0, 0, OP_EQUAL];
+        test_ok_with_stack(&v, vec![vec![]]);
+        let v = [OP_PUSH + 2, 0, 1, OP_PUSH + 2, 0, 1, OP_EQUAL];
+        test_ok_with_stack(&v, vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSH + 3, 0, 0, 0, OP_0, OP_EQUAL], vec![vec![]]);
+        test_err(&[OP_EQUAL], ExecuteError::Stack(StackError::Underflow));
+        test_err(
+            &[OP_0, OP_EQUAL],
+            ExecuteError::Stack(StackError::Underflow),
+        );
+    }
 }
