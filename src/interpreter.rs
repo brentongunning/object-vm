@@ -2064,4 +2064,48 @@ mod tests {
             ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
         );
     }
+
+    #[test]
+    fn op_fund() {
+        test_ok_with_mock_vm(
+            &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_FUND]].concat(),
+            |mock_vm| {
+                mock_vm.expect("fund", vec![vec![1; ID_LEN]], vec![], Ok(()));
+            },
+        );
+        test_err_with_mock_vm(
+            &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_FUND]].concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "fund",
+                    vec![vec![1; ID_LEN]],
+                    vec![],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+        test_err(
+            &[OP_FUND],
+            ExecuteError::Vm(VmError::Stack(StackError::Underflow)),
+        );
+        test_err(
+            &[
+                vec![OP_PUSH + ID_LEN as u8 + 1],
+                vec![0; ID_LEN + 1],
+                vec![OP_FUND],
+            ]
+            .concat(),
+            ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
+        );
+        test_err(
+            &[
+                vec![OP_PUSH + ID_LEN as u8 - 1],
+                vec![0; ID_LEN - 1],
+                vec![OP_FUND],
+            ]
+            .concat(),
+            ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
+        );
+    }
 }
