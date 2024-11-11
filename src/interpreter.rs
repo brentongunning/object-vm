@@ -862,4 +862,32 @@ mod tests {
         test_err(&[OP_CAT], ExecuteError::Stack(StackError::Underflow));
         test_err(&[OP_0, OP_CAT], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_split() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_SPLIT], vec![vec![], vec![]]);
+        test_ok_with_stack(&[OP_1, OP_0, OP_SPLIT], vec![vec![], vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_SPLIT], vec![vec![1], vec![]]);
+        let v = [OP_PUSH + 3, 1, 2, 3, OP_0, OP_SPLIT];
+        test_ok_with_stack(&v, vec![vec![], vec![1, 2, 3]]);
+        let v = [OP_PUSH + 3, 1, 2, 3, OP_1, OP_SPLIT];
+        test_ok_with_stack(&v, vec![vec![1], vec![2, 3]]);
+        let v = [OP_PUSH + 3, 1, 2, 3, OP_2, OP_SPLIT];
+        test_ok_with_stack(&v, vec![vec![1, 2], vec![3]]);
+        let v = [OP_PUSH + 3, 1, 2, 3, OP_3, OP_SPLIT];
+        test_ok_with_stack(&v, vec![vec![1, 2, 3], vec![]]);
+        test_err(&[OP_SPLIT], ExecuteError::Stack(StackError::Underflow));
+        test_err(
+            &[OP_0, OP_SPLIT],
+            ExecuteError::Stack(StackError::Underflow),
+        );
+        test_err(
+            &[OP_1, OP_NEG1, OP_SPLIT],
+            ExecuteError::Stack(StackError::BadElement),
+        );
+        test_err(
+            &[OP_1, OP_2, OP_SPLIT],
+            ExecuteError::Stack(StackError::BadElement),
+        );
+    }
 }
