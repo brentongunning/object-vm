@@ -934,4 +934,17 @@ mod tests {
         test_ok_with_stack(&v, vec![vec![0xff]]);
         test_err(&[OP_BIN2NUM], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_invert() {
+        test_ok_with_stack(&[OP_0, OP_INVERT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 0, OP_INVERT], vec![vec![0xff]]);
+        test_ok_with_stack(&[OP_PUSH + 1, 0xff, OP_INVERT], vec![vec![0]]);
+        let v = [OP_PUSH + 1, 0b11001110, OP_INVERT];
+        test_ok_with_stack(&v, vec![vec![0b00110001]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 0xff, OP_INVERT], vec![vec![0xff, 0]]);
+        let v = [OP_PUSH + 2, 0b11001110, 0, OP_INVERT];
+        test_ok_with_stack(&v, vec![vec![0b00110001, 0xff]]);
+        test_err(&[OP_INVERT], ExecuteError::Stack(StackError::Underflow));
+    }
 }
