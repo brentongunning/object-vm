@@ -845,6 +845,21 @@ mod tests {
             vec![vec![]],
             vec![vec![1]],
         );
-        test_err(&[OP_FROMALTSTACK], ExecuteError::Stack(StackError::Underflow));
+        test_err(
+            &[OP_FROMALTSTACK],
+            ExecuteError::Stack(StackError::Underflow),
+        );
+    }
+
+    #[test]
+    fn op_cat() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_CAT], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_CAT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_0, OP_CAT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_CAT], vec![vec![1, 1]]);
+        let v = [OP_PUSH + 2, 1, 2, OP_PUSH + 3, 3, 4, 5, OP_CAT];
+        test_ok_with_stack(&v, vec![vec![1, 2, 3, 4, 5]]);
+        test_err(&[OP_CAT], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_CAT], ExecuteError::Stack(StackError::Underflow));
     }
 }
