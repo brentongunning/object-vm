@@ -2004,4 +2004,64 @@ mod tests {
             ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
         );
     }
+
+    #[test]
+    fn op_class() {
+        test_ok_with_mock_vm_and_stack(
+            &[
+                vec![OP_PUSH + ID_LEN as u8],
+                vec![1; ID_LEN],
+                vec![OP_CLASS],
+            ]
+            .concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "class",
+                    vec![vec![1; ID_LEN]],
+                    vec![vec![2; ID_LEN]],
+                    Ok(()),
+                );
+            },
+            vec![vec![2; ID_LEN]],
+        );
+        test_err_with_mock_vm(
+            &[
+                vec![OP_PUSH + ID_LEN as u8],
+                vec![1; ID_LEN],
+                vec![OP_CLASS],
+            ]
+            .concat(),
+            |mock_vm| {
+                mock_vm.expect(
+                    "class",
+                    vec![vec![1; ID_LEN]],
+                    vec![vec![2; ID_LEN]],
+                    Err(VmError::Placeholder("err".into())),
+                );
+            },
+            ExecuteError::Vm(VmError::Placeholder("err".into())),
+        );
+        test_err(
+            &[OP_CLASS],
+            ExecuteError::Vm(VmError::Stack(StackError::Underflow)),
+        );
+        test_err(
+            &[
+                vec![OP_PUSH + ID_LEN as u8 - 1],
+                vec![0; ID_LEN - 1],
+                vec![OP_CLASS],
+            ]
+            .concat(),
+            ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
+        );
+        test_err(
+            &[
+                vec![OP_PUSH + ID_LEN as u8 + 1],
+                vec![0; ID_LEN + 1],
+                vec![OP_CLASS],
+            ]
+            .concat(),
+            ExecuteError::Vm(VmError::Stack(StackError::BadElement)),
+        );
+    }
 }
