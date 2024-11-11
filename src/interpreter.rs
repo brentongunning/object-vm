@@ -528,4 +528,61 @@ mod tests {
         let v = [vec![OP_PUSH + 75], vec![0; 74]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
     }
+
+    #[test]
+    fn op_pushdata1() {
+        test_ok_with_stack(&[OP_PUSHDATA1, 0], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSHDATA1, 1, 1], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSHDATA1, 2, 1, 2], vec![vec![1, 2]]);
+        test_ok_with_stack(&[OP_PUSHDATA1, 3, 1, 2, 3], vec![vec![1, 2, 3]]);
+        let v = [vec![OP_PUSHDATA1, 255], vec![0; 255]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 255]]);
+        let v = [OP_PUSHDATA1, 0, OP_PUSHDATA1, 1, 1];
+        test_ok_with_stack(&v, vec![vec![], vec![1]]);
+        test_err(&[OP_PUSHDATA1], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA1, 1], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA1, 2, 1], ScriptError::UnexpectedEndOfScript);
+    }
+
+    #[test]
+    fn op_pushdata2() {
+        test_ok_with_stack(&[OP_PUSHDATA2, 0, 0], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSHDATA2, 1, 0, 1], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSHDATA2, 2, 0, 1, 2], vec![vec![1, 2]]);
+        test_ok_with_stack(&[OP_PUSHDATA2, 3, 0, 1, 2, 3], vec![vec![1, 2, 3]]);
+        let v = [vec![OP_PUSHDATA2, 2, 1], vec![0; 258]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 258]]);
+        let v = [vec![OP_PUSHDATA2, 255, 255], vec![0; 65535]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 65535]]);
+        let v = [OP_PUSHDATA2, 0, 0, OP_PUSHDATA2, 1, 0, 1];
+        test_ok_with_stack(&v, vec![vec![], vec![1]]);
+        test_err(&[OP_PUSHDATA2], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA2, 1], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA2, 2, 0], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA2, 2, 0, 1], ScriptError::UnexpectedEndOfScript);
+        let v = [vec![OP_PUSHDATA2, 255, 255], vec![0; 65534]].concat();
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+    }
+
+    #[test]
+    fn op_pushdata4() {
+        test_ok_with_stack(&[OP_PUSHDATA4, 0, 0, 0, 0], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSHDATA4, 1, 0, 0, 0, 1], vec![vec![1]]);
+        test_ok_with_stack(&[OP_PUSHDATA4, 2, 0, 0, 0, 1, 2], vec![vec![1, 2]]);
+        test_ok_with_stack(&[OP_PUSHDATA4, 3, 0, 0, 0, 1, 2, 3], vec![vec![1, 2, 3]]);
+        let v = [vec![OP_PUSHDATA4, 2, 1, 0, 0], vec![0; 258]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 258]]);
+        let v = [vec![OP_PUSHDATA4, 0, 0, 1, 0], vec![0; 65536]].concat();
+        test_ok_with_stack(&v, vec![vec![0; 65536]]);
+        let v = [OP_PUSHDATA4, 0, 0, 0, 0, OP_PUSHDATA4, 1, 0, 0, 0, 1];
+        test_ok_with_stack(&v, vec![vec![], vec![1]]);
+        test_err(&[OP_PUSHDATA4], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA4, 1], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA4, 2, 0], ScriptError::UnexpectedEndOfScript);
+        test_err(&[OP_PUSHDATA4, 2, 0, 0], ScriptError::UnexpectedEndOfScript);
+        let v = [OP_PUSHDATA4, 2, 0, 0, 0];
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let v = [vec![OP_PUSHDATA4, 0, 0, 1, 0], vec![0; 65535]].concat();
+        test_err(&v, ScriptError::UnexpectedEndOfScript);
+    }
 }
