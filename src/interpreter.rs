@@ -599,4 +599,22 @@ mod tests {
         test_ok_with_stack(&[OP_PUSH + 2, 0, 255, OP_NOT], vec![vec![]]);
         test_err(&[OP_NOT], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_if() {
+        test_ok(&[OP_0, OP_IF, OP_ENDIF]);
+        test_ok(&[OP_1, OP_IF, OP_ENDIF]);
+        test_ok(&[OP_0, OP_IF, OP_0, OP_VERIFY, OP_ENDIF]);
+        test_ok(&[OP_0, OP_0, OP_IF, OP_IF, OP_ENDIF, OP_ENDIF]);
+        let v = [OP_1, OP_IF, OP_0, OP_VERIFY, OP_ENDIF];
+        test_err(&v, ExecuteError::OpVerifyFailed);
+        let v = [
+            OP_1, OP_1, OP_IF, OP_IF, OP_0, OP_VERIFY, OP_ENDIF, OP_ENDIF,
+        ];
+        test_err(&v, ExecuteError::OpVerifyFailed);
+        test_err(&[OP_IF], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_IF], ScriptError::BadConditional);
+        let v = [OP_0, OP_0, OP_IF, OP_IF, OP_ENDIF];
+        test_err(&v, ScriptError::BadConditional);
+    }
 }
