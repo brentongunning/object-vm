@@ -1244,4 +1244,33 @@ mod tests {
         test_err(&[OP_MUL], ExecuteError::Stack(StackError::Underflow));
         test_err(&[OP_0, OP_MUL], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_div() {
+        test_ok_with_stack(&[OP_0, OP_1, OP_DIV], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_1, OP_DIV], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_NEG1, OP_DIV], vec![vec![0xff]]);
+        test_ok_with_stack(&[OP_2, OP_NEG1, OP_DIV], vec![vec![0xfe]]);
+        test_ok_with_stack(&[OP_2, OP_2, OP_DIV], vec![vec![1]]);
+        test_ok_with_stack(&[OP_3, OP_2, OP_DIV], vec![vec![1]]);
+        test_ok_with_stack(&[OP_4, OP_2, OP_DIV], vec![vec![2]]);
+        test_ok_with_stack(&[OP_5, OP_2, OP_DIV], vec![vec![2]]);
+        test_ok_with_stack(&[OP_6, OP_2, OP_DIV], vec![vec![3]]);
+        test_ok_with_stack(&[OP_6, OP_3, OP_DIV], vec![vec![2]]);
+        test_ok_with_stack(&[OP_8, OP_3, OP_DIV], vec![vec![2]]);
+        test_ok_with_stack(&[OP_9, OP_3, OP_DIV], vec![vec![3]]);
+        test_ok_with_stack(&[OP_16, OP_16, OP_DIV], vec![vec![1]]);
+        let v = [OP_PUSH + 2, 1, 0, OP_PUSH + 2, 1, 0, OP_DIV];
+        test_ok_with_stack(&v, vec![vec![1]]);
+        let v = [OP_16, OP_PUSH + 2, 1, 0, OP_DIV];
+        test_ok_with_stack(&v, vec![vec![16]]);
+        let v = [OP_PUSH + 2, 0xff, 0, OP_1, OP_DIV];
+        test_ok_with_stack(&v, vec![vec![0xff, 0]]);
+        let v = [OP_PUSH + 2, 0xff, 0xff, OP_1, OP_DIV];
+        test_ok_with_stack(&v, vec![vec![0xff]]);
+        test_err(&[OP_DIV], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_DIV], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_0, OP_DIV], ExecuteError::DivideByZero);
+        test_err(&[OP_0, OP_PUSH + 1, 0, OP_DIV], ExecuteError::DivideByZero);
+    }
 }
