@@ -1411,4 +1411,21 @@ mod tests {
         test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
         test_err(&[OP_BLAKE3], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_sha256() {
+        let h = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        test_ok_with_stack(&[OP_0, OP_SHA256], vec![hex::decode(h).unwrap()]);
+        let h = "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a";
+        test_ok_with_stack(&[OP_1, OP_SHA256], vec![hex::decode(h).unwrap()]);
+        let d = "hello".as_bytes().to_vec();
+        let h = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+        let v = [vec![OP_PUSH + d.len() as u8], d, vec![OP_SHA256]].concat();
+        test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
+        let d = "abcdefghijklmnopqrstuvwxyz0123456789".as_bytes().to_vec();
+        let h = "011fc2994e39d251141540f87a69092b3f22a86767f7283de7eeedb3897bedf6";
+        let v = [vec![OP_PUSH + d.len() as u8], d, vec![OP_SHA256]].concat();
+        test_ok_with_stack(&v, vec![hex::decode(h).unwrap()]);
+        test_err(&[OP_SHA256], ExecuteError::Stack(StackError::Underflow));
+    }
 }
