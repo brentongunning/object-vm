@@ -811,4 +811,14 @@ mod tests {
         test_ok_with_stack(&v, vec![]);
         test_err(&[OP_DROP], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_depth() {
+        test_ok_with_stack(&[OP_DEPTH], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_DEPTH], vec![vec![], vec![1]]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_DEPTH], vec![vec![], vec![1], vec![2]]);
+        let v = [vec![0; 255], vec![OP_DEPTH]].concat();
+        let s = [vec![vec![]; 255], vec![vec![255, 0]]].concat();
+        test_ok_with_stack(&v, s);
+    }
 }
