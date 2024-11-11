@@ -453,6 +453,10 @@ mod tests {
         test_with_stubs(script, Some(stack), None, Ok(()));
     }
 
+    fn test_ok_with_altstack(script: &[u8], stack: Vec<Vec<u8>>, altstack: Vec<Vec<u8>>) {
+        test_with_stubs(script, Some(stack), Some(altstack), Ok(()));
+    }
+
     #[test]
     fn empty() {
         test_ok(&[]);
@@ -820,5 +824,12 @@ mod tests {
         let v = [vec![0; 255], vec![OP_DEPTH]].concat();
         let s = [vec![vec![]; 255], vec![vec![255, 0]]].concat();
         test_ok_with_stack(&v, s);
+    }
+
+    #[test]
+    fn op_toaltstack() {
+        test_ok_with_altstack(&[OP_0, OP_TOALTSTACK], vec![], vec![vec![]]);
+        test_ok_with_altstack(&[OP_0, OP_1, OP_TOALTSTACK], vec![vec![]], vec![vec![1]]);
+        test_err(&[OP_TOALTSTACK], ExecuteError::Stack(StackError::Underflow));
     }
 }
