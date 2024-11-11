@@ -1349,4 +1349,26 @@ mod tests {
         let v = vec![OP_0, OP_NUMEQUAL];
         test_err(&v, ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_lt() {
+        test_ok_with_stack(&[OP_0, OP_0, OP_LT], vec![vec![]]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_0, OP_2, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_2, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_1, OP_0, OP_LT], vec![vec![]]);
+        test_ok_with_stack(&[OP_2, OP_1, OP_LT], vec![vec![]]);
+        test_ok_with_stack(&[OP_1, OP_PUSH + 2, 0, 1, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_0, OP_PUSH + 2, 0, 0, OP_LT], vec![vec![]]);
+        test_ok_with_stack(&[OP_PUSH + 2, 0, 0, OP_1, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_NEG1, OP_0, OP_LT], vec![vec![1]]);
+        test_ok_with_stack(&[OP_NEG1, OP_NEG1, OP_LT], vec![vec![]]);
+        test_ok_with_stack(&[OP_NEG1, OP_2, OP_MUL, OP_NEG1, OP_LT], vec![vec![1]]);
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 2, 0, 0, OP_LT];
+        test_ok_with_stack(&v, vec![vec![]]);
+        let v = [OP_PUSH + 2, 0, 0, OP_PUSH + 2, 1, 0, OP_LT];
+        test_ok_with_stack(&v, vec![vec![1]]);
+        test_err(&[OP_LT], ExecuteError::Stack(StackError::Underflow));
+        test_err(&[OP_0, OP_LT], ExecuteError::Stack(StackError::Underflow));
+    }
 }
