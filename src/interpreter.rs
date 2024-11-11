@@ -445,9 +445,12 @@ mod tests {
         test_with_stubs(script, None, None, Ok(()));
     }
 
-
     fn test_err(script: &[u8], e: impl Into<ExecuteError>) {
         test_with_stubs(script, None, None, Err(e.into()));
+    }
+
+    fn test_ok_with_stack(script: &[u8], stack: Vec<Vec<u8>>) {
+        test_with_stubs(script, Some(stack), None, Ok(()));
     }
 
     #[test]
@@ -459,5 +462,24 @@ mod tests {
     fn invalid_opcode() {
         test_err(&[156], ScriptError::BadOpcode);
         test_err(&[255], ScriptError::BadOpcode);
+    }
+
+    #[test]
+    fn unexecuted_branch() {
+        test_ok_with_stack(&[OP_0, OP_IF, OP_0, OP_ENDIF], vec![]);
+        test_ok_with_stack(&[OP_0, OP_IF, OP_16, OP_ENDIF], vec![]);
+        test_ok_with_stack(&[OP_0, OP_IF, OP_PUSH + 1, 1, OP_ENDIF], vec![]);
+        test_ok_with_stack(&[OP_0, OP_IF, OP_PUSHDATA1, 0, OP_ENDIF], vec![]);
+        test_ok_with_stack(&[OP_0, OP_IF, OP_PUSHDATA2, 0, 0, OP_ENDIF], vec![]);
+        test_ok_with_stack(&[OP_0, OP_IF, OP_PUSHDATA4, 0, 0, 0, 0, OP_ENDIF], vec![]);
+        test_ok_with_stack(
+            &[
+                vec![OP_0, OP_IF, OP_UNIQUIFIER],
+                vec![0; ID_LEN],
+                vec![OP_ENDIF],
+            ]
+            .concat(),
+            vec![],
+        );
     }
 }
