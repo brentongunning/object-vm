@@ -832,4 +832,19 @@ mod tests {
         test_ok_with_altstack(&[OP_0, OP_1, OP_TOALTSTACK], vec![vec![]], vec![vec![1]]);
         test_err(&[OP_TOALTSTACK], ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_fromaltstack() {
+        test_ok_with_altstack(
+            &[OP_0, OP_TOALTSTACK, OP_FROMALTSTACK],
+            vec![vec![]],
+            vec![],
+        );
+        test_ok_with_altstack(
+            &[OP_0, OP_1, OP_TOALTSTACK, OP_TOALTSTACK, OP_FROMALTSTACK],
+            vec![vec![]],
+            vec![vec![1]],
+        );
+        test_err(&[OP_FROMALTSTACK], ExecuteError::Stack(StackError::Underflow));
+    }
 }
