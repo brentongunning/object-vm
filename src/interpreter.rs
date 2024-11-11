@@ -802,4 +802,13 @@ mod tests {
         ];
         test_err(&v, ExecuteError::Stack(StackError::Underflow));
     }
+
+    #[test]
+    fn op_drop() {
+        test_ok_with_stack(&[OP_0, OP_DROP], vec![]);
+        test_ok_with_stack(&[OP_0, OP_1, OP_DROP], vec![vec![]]);
+        let v = [OP_0, OP_1, OP_DROP, OP_DROP];
+        test_ok_with_stack(&v, vec![]);
+        test_err(&[OP_DROP], ExecuteError::Stack(StackError::Underflow));
+    }
 }
