@@ -23,16 +23,19 @@ pub trait Vm {
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
     fn fund(&mut self) -> Result<(), VmError>; // object_id --
 
-    // TODO: Finalize
+    // TODO: Finalize - sigs and uniquifiers
 
     fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
+
+// TODO: Limits
 
 pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
     caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
+    pending_uniquifiers: HashSet<Id>,
     // TODO: outputs
     deployed_code: HashMap<Id, Vec<u8>>,
 }
@@ -44,6 +47,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             wasm,
             caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
+            pending_uniquifiers: HashSet::new(),
             deployed_code: HashMap::new(),
         }
     }
@@ -108,7 +112,9 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn uniquifier(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let revision_id: Id = self.stack.pop(decode_arr)??;
+        self.pending_uniquifiers.insert(revision_id);
+        Ok(())
     }
 
     fn fund(&mut self) -> Result<(), VmError> {
