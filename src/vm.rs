@@ -20,7 +20,9 @@ pub trait Vm {
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
     fn fund(&mut self) -> Result<(), VmError>; // object_id --
 
-    fn caller(&mut self) -> Result<(), VmError>; // -- object_id
+    // TODO: Finalize
+
+    fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
 
 pub struct VmImpl<S: Stack> {
