@@ -532,7 +532,7 @@ mod tests {
         result: Result<(), ExecuteError>,
     ) {
         let sig_verifier = StubSigVerifier {};
-        let stack = StackImpl::new(262144, 1024);
+        let stack = StackImpl::new(262144, 262144, 1024);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         match interpreter.execute(script) {
@@ -579,7 +579,7 @@ mod tests {
         result: Result<(), ExecuteError>,
     ) {
         let mut sig_verifier = MockSigVerifier::default();
-        let stack = StackImpl::new(262144, 1024);
+        let stack = StackImpl::new(262144, 262144, 1024);
         let mut vm = MockVm::new(stack);
         setup_vm(&mut vm);
         setup_sig_verifier(&mut sig_verifier);
@@ -728,7 +728,7 @@ mod tests {
         test_err(&[OP_PUSHDATA1, 1], ScriptError::UnexpectedEndOfScript);
         test_err(&[OP_PUSHDATA1, 2, 1], ScriptError::UnexpectedEndOfScript);
         let sig_verifier = StubSigVerifier {};
-        let stack = StackImpl::new(0, 1);
+        let stack = StackImpl::new(0, 0, 1);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(
@@ -756,7 +756,7 @@ mod tests {
         let v = [vec![OP_PUSHDATA2, 255, 255], vec![0; 65534]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
         let sig_verifier = StubSigVerifier {};
-        let stack = StackImpl::new(0, 1);
+        let stack = StackImpl::new(0, 0, 1);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(
@@ -786,7 +786,7 @@ mod tests {
         let v = [vec![OP_PUSHDATA4, 0, 0, 1, 0], vec![0; 65535]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
         let sig_verifier = StubSigVerifier {};
-        let stack = StackImpl::new(0, 1);
+        let stack = StackImpl::new(0, 0, 1);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(

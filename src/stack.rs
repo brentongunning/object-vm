@@ -17,17 +17,19 @@ pub trait Stack {
 pub struct StackImpl {
     stack: Vec<Vec<u8>>,
     alt: Vec<Vec<u8>>,
-    max_size: usize,
+    max_total_size: usize,
+    max_element_size: usize,
     max_elements: usize,
     size: usize,
 }
 
 impl StackImpl {
-    pub fn new(max_size: usize, max_elements: usize) -> Self {
+    pub fn new(max_total_size: usize, max_element_size: usize, max_elements: usize) -> Self {
         Self {
             stack: Vec::new(),
             alt: Vec::new(),
-            max_size,
+            max_total_size,
+            max_element_size,
             max_elements,
             size: 0,
         }
@@ -42,7 +44,10 @@ impl Stack for StackImpl {
     }
 
     fn push(&mut self, buf: &[u8]) -> Result<(), StackError> {
-        if self.size + buf.len() > self.max_size {
+        if self.size + buf.len() > self.max_total_size {
+            return Err(StackError::Overflow);
+        }
+        if buf.len() > self.max_element_size {
             return Err(StackError::Overflow);
         }
         if self.stack.len() + self.alt.len() + 1 > self.max_elements {
@@ -165,36 +170,40 @@ mod tests {
 
     #[test]
     fn new_stack() {
-        let stack = StackImpl::new(1024, 32);
+        let stack = StackImpl::new(1024, 256, 32);
         assert_eq!(stack.depth(), 0);
     }
 
     #[test]
     fn push() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
         stack.push(&[7, 8, 9]).unwrap();
         assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![7, 8, 9]);
         assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![4, 5, 6]);
         assert_eq!(stack.pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
-        let r = stack.push(&[0; 1025]);
-        assert!(matches!(r, Err(StackError::Overflow)));
     }
 
     #[test]
-    fn pop_after_oom() {
-        let mut stack = StackImpl::new(1024, 32);
-        stack.push(&[0; 1024]).unwrap();
+    fn push_oom() {
+        let mut stack = StackImpl::new(1024, 256, 5);
+        let r = stack.push(&[0; 257]);
+        assert!(matches!(r, Err(StackError::Overflow)));
+        stack.push(&[0; 256]).unwrap();
+        stack.push(&[0; 256]).unwrap();
+        stack.push(&[0; 256]).unwrap();
+        stack.push(&[0; 128]).unwrap();
+        let r = stack.push(&[0; 256]);
+        assert!(matches!(r, Err(StackError::Overflow)));
+        stack.push(&[0; 1]).unwrap();
         let r = stack.push(&[0; 1]);
         assert!(matches!(r, Err(StackError::Overflow)));
-        let v = stack.pop(|x| x.to_vec()).unwrap();
-        assert_eq!(v, vec![0; 1024]);
     }
 
     #[test]
     fn pop() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         let r = stack.pop(|x| x.to_vec());
         assert!(matches!(r, Err(StackError::Underflow)));
         stack.push(&[1, 2, 3]).unwrap();
@@ -205,7 +214,7 @@ mod tests {
 
     #[test]
     fn last() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         let r = stack.last(|x| x.to_vec());
         assert!(matches!(r, Err(StackError::Underflow)));
         stack.push(&[1, 2, 3]).unwrap();
@@ -216,7 +225,7 @@ mod tests {
 
     #[test]
     fn dup() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         stack.dup(0).unwrap();
         stack.push(&[1, 2, 3]).unwrap();
         stack.dup(1).unwrap();
@@ -250,7 +259,7 @@ mod tests {
 
     #[test]
     fn dup_oom() {
-        let mut stack = StackImpl::new(1000, 10);
+        let mut stack = StackImpl::new(1024, 1024, 32);
         stack.push(&[0; 400]).unwrap();
         stack.push(&[0; 400]).unwrap();
         assert!(matches!(stack.dup(2), Err(StackError::Overflow)));
@@ -258,7 +267,7 @@ mod tests {
 
     #[test]
     fn swap() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
         stack.swap(1).unwrap();
@@ -272,7 +281,7 @@ mod tests {
 
     #[test]
     fn depth() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         assert_eq!(stack.depth(), 0);
         stack.push(&[1, 2, 3]).unwrap();
         assert_eq!(stack.depth(), 1);
@@ -284,7 +293,7 @@ mod tests {
 
     #[test]
     fn move_to_alt_stack() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         let r = stack.move_to_alt_stack();
         assert!(matches!(r, Err(StackError::Underflow)));
         stack.push(&[1, 2, 3]).unwrap();
@@ -296,7 +305,7 @@ mod tests {
 
     #[test]
     fn move_from_alt_stack() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         let r = stack.move_from_alt_stack();
         assert!(matches!(r, Err(StackError::Underflow)));
         stack.push(&[1, 2, 3]).unwrap();
@@ -311,7 +320,7 @@ mod tests {
 
     #[test]
     fn clear() {
-        let mut stack = StackImpl::new(1024, 32);
+        let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).unwrap();
         stack.push(&[4, 5, 6]).unwrap();
         stack.move_to_alt_stack().unwrap();
