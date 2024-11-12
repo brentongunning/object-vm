@@ -35,7 +35,11 @@ pub enum VmError {
     // TODO: Remove this and replace with real errors
     Placeholder(String),
     Stack(StackError),
+    Wasm(WasmError),
 }
+
+#[derive(Debug)]
+pub enum WasmError {}
 
 impl From<ScriptError> for ExecuteError {
     fn from(e: ScriptError) -> Self {
@@ -70,5 +74,11 @@ impl From<ScriptError> for VerifyError {
 impl From<StackError> for VmError {
     fn from(e: StackError) -> Self {
         VmError::Stack(e)
+    }
+}
+
+impl From<WasmError> for VmError {
+    fn from(e: WasmError) -> Self {
+        VmError::Wasm(e)
     }
 }

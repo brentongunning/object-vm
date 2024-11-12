@@ -6,3 +6,4 @@ pub mod script;
 pub mod sig_verifier;
 pub mod stack;
 pub mod vm;
+pub mod wasm;
