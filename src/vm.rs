@@ -6,6 +6,8 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
+const NULL_CALLER: Id = [0; 32];
+
 pub trait Vm {
     type Stack: Stack;
 
@@ -63,18 +65,18 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn create(&mut self) -> Result<(), VmError> {
-        let class_id: Id = self.stack().pop(decode_arr)??;
+        let class_id: Id = self.stack.pop(decode_arr)??;
         let object_id = [0; 32]; // TODO: generate object id
         self.caller_stack.push(object_id);
         self.wasm.create(&class_id, &object_id)?;
-        self.stack().push(&object_id)?;
+        self.stack.push(&object_id)?;
         self.caller_stack.pop().unwrap();
         // TODO: outputs
         Ok(())
     }
 
     fn call(&mut self) -> Result<(), VmError> {
-        let object_id: Id = self.stack().pop(decode_arr)??;
+        let object_id: Id = self.stack.pop(decode_arr)??;
         let different_caller = !self.caller_stack.last().is_some_and(|x| x == &object_id);
         if different_caller {
             self.caller_stack.push(object_id);
@@ -87,20 +89,20 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn state(&mut self) -> Result<(), VmError> {
-        let object_id: Id = self.stack().pop(decode_arr)??;
+        let object_id: Id = self.stack.pop(decode_arr)??;
         self.wasm.state(&object_id)?;
         Ok(())
     }
 
     fn class(&mut self) -> Result<(), VmError> {
-        let object_id: Id = self.stack().pop(decode_arr)??;
+        let object_id: Id = self.stack.pop(decode_arr)??;
         let class_id = self.wasm.class(&object_id)?;
-        self.stack().push(&class_id)?;
+        self.stack.push(&class_id)?;
         Ok(())
     }
 
     fn auth(&mut self) -> Result<(), VmError> {
-        let pubkey: PubKey = self.stack().pop(decode_arr)??;
+        let pubkey: PubKey = self.stack.pop(decode_arr)??;
         self.pending_sigs.remove(&pubkey);
         Ok(())
     }
@@ -114,7 +116,12 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn caller(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        if let Some(object_id) = self.caller_stack.last() {
+            self.stack.push(object_id)?;
+        } else {
+            self.stack.push(&NULL_CALLER)?;
+        }
+        Ok(())
     }
 }
 
