@@ -45,6 +45,8 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
             Ok(ret)
         }
 
+        self.vm.begin()?;
+
         while i < script.len() {
             if !branch.is_empty() && !branch.last().unwrap() {
                 i = skip_branch(script, i)?;
@@ -326,6 +328,8 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
             Err(ScriptError::BadConditional)?;
         }
 
+        self.vm.end()?;
+
         Ok(())
     }
 }
@@ -344,6 +348,14 @@ mod tests {
 
     impl Vm for StubVm {
         type Stack = StackImpl;
+
+        fn begin(&mut self) -> Result<(), VmError> {
+            Ok(())
+        }
+
+        fn end(&mut self) -> Result<(), VmError> {
+            Ok(())
+        }
 
         fn stack(&mut self) -> &mut Self::Stack {
             &mut self.stack
@@ -442,6 +454,14 @@ mod tests {
 
     impl Vm for MockVm {
         type Stack = StackImpl;
+
+        fn begin(&mut self) -> Result<(), VmError> {
+            Ok(())
+        }
+
+        fn end(&mut self) -> Result<(), VmError> {
+            Ok(())
+        }
 
         fn stack(&mut self) -> &mut Self::Stack {
             &mut self.stack

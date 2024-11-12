@@ -35,6 +35,7 @@ pub enum VmError {
     // TODO: Remove this and replace with real errors
     Placeholder(String),
     Stack(StackError),
+    Unsigned,
     Wasm(WasmError),
 }
 

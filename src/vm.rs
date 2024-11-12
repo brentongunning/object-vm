@@ -11,6 +11,9 @@ const NULL_CALLER: Id = [0; 32];
 pub trait Vm {
     type Stack: Stack;
 
+    fn begin(&mut self) -> Result<(), VmError>;
+    fn end(&mut self) -> Result<(), VmError>;
+
     fn stack(&mut self) -> &mut Self::Stack;
 
     fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
@@ -22,8 +25,6 @@ pub trait Vm {
     fn auth(&mut self) -> Result<(), VmError>; // pubkey --
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
     fn fund(&mut self) -> Result<(), VmError>; // object_id --
-
-    // TODO: Finalize - sigs and uniquifiers
 
     fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
@@ -55,6 +56,26 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
 
 impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     type Stack = S;
+
+    fn begin(&mut self) -> Result<(), VmError> {
+        // TODO: reset wasm
+        self.stack.clear();
+        self.caller_stack.clear();
+        self.pending_sigs.clear();
+        self.pending_uniquifiers.clear();
+        self.deployed_code.clear();
+        Ok(())
+    }
+
+    fn end(&mut self) -> Result<(), VmError> {
+        if !self.pending_sigs.is_empty() {
+            return Err(VmError::Unsigned);
+        }
+
+        // TODO: check uniquifiers
+
+        Ok(())
+    }
 
     fn stack(&mut self) -> &mut Self::Stack {
         &mut self.stack
