@@ -78,10 +78,10 @@ mod tests {
     use crate::stack::StackImpl;
 
     #[test]
-    #[should_panic]
-    fn test_vm() {
-        let stack = StackImpl::new(1024, 256, 32);
+    fn stack() {
+        let mut stack = StackImpl::new(1024, 256, 32);
+        stack.push(&[1, 2, 3]).ok();
         let mut vm = VmImpl::new(stack);
-        vm.deploy().ok();
+        assert_eq!(vm.stack().pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
     }
 }
