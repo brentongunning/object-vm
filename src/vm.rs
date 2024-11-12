@@ -30,6 +30,7 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
     pending_sigs: HashSet<PubKey>,
+    // TODO: outputs
     deployed_code: HashMap<Id, Vec<u8>>,
 }
 
