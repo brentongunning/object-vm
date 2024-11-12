@@ -532,7 +532,7 @@ mod tests {
         result: Result<(), ExecuteError>,
     ) {
         let sig_verifier = StubSigVerifier {};
-        let stack = StackImpl::default();
+        let stack = StackImpl::new(262144, 1024);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         match interpreter.execute(script) {
@@ -579,7 +579,7 @@ mod tests {
         result: Result<(), ExecuteError>,
     ) {
         let mut sig_verifier = MockSigVerifier::default();
-        let stack = StackImpl::default();
+        let stack = StackImpl::new(262144, 1024);
         let mut vm = MockVm::new(stack);
         setup_vm(&mut vm);
         setup_sig_verifier(&mut sig_verifier);

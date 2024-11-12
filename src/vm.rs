@@ -80,7 +80,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_vm() {
-        let stack = StackImpl::default();
+        let stack = StackImpl::new(1024, 32);
         let mut vm = VmImpl::new(stack);
         vm.deploy().ok();
     }
