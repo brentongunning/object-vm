@@ -2,6 +2,7 @@ use crate::{
     core::PubKey,
     errors::VmError,
     stack::{decode_arr, Stack},
+    wasm::Wasm,
 };
 use std::collections::HashSet;
 
@@ -25,21 +26,23 @@ pub trait Vm {
     fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
 
-pub struct VmImpl<S: Stack> {
+pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
+    wasm: W,
     pending_sigs: HashSet<PubKey>,
 }
 
-impl<S: Stack> VmImpl<S> {
-    pub fn new(stack: S) -> Self {
+impl<S: Stack, W: Wasm> VmImpl<S, W> {
+    pub fn new(stack: S, wasm: W) -> Self {
         Self {
             stack,
+            wasm,
             pending_sigs: HashSet::new(),
         }
     }
 }
 
-impl<S: Stack> Vm for VmImpl<S> {
+impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     type Stack = S;
 
     fn stack(&mut self) -> &mut Self::Stack {
@@ -47,7 +50,10 @@ impl<S: Stack> Vm for VmImpl<S> {
     }
 
     fn deploy(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let code = self.stack.pop(|x| x.to_vec())?;
+        let class_id = self.wasm.deploy(&code)?;
+        self.stack.push(&class_id)?;
+        Ok(())
     }
 
     fn create(&mut self) -> Result<(), VmError> {
