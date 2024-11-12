@@ -727,6 +727,14 @@ mod tests {
         test_err(&[OP_PUSHDATA1], ScriptError::UnexpectedEndOfScript);
         test_err(&[OP_PUSHDATA1, 1], ScriptError::UnexpectedEndOfScript);
         test_err(&[OP_PUSHDATA1, 2, 1], ScriptError::UnexpectedEndOfScript);
+        let sig_verifier = StubSigVerifier {};
+        let stack = StackImpl::new(0, 1);
+        let vm = StubVm { stack };
+        let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
+        assert!(matches!(
+            interpreter.execute(&[OP_PUSHDATA1, 1, 0]),
+            Err(ExecuteError::Stack(StackError::Overflow))
+        ));
     }
 
     #[test]
@@ -747,6 +755,14 @@ mod tests {
         test_err(&[OP_PUSHDATA2, 2, 0, 1], ScriptError::UnexpectedEndOfScript);
         let v = [vec![OP_PUSHDATA2, 255, 255], vec![0; 65534]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let sig_verifier = StubSigVerifier {};
+        let stack = StackImpl::new(0, 1);
+        let vm = StubVm { stack };
+        let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
+        assert!(matches!(
+            interpreter.execute(&[OP_PUSHDATA2, 1, 0, 0]),
+            Err(ExecuteError::Stack(StackError::Overflow))
+        ));
     }
 
     #[test]
@@ -769,6 +785,14 @@ mod tests {
         test_err(&v, ScriptError::UnexpectedEndOfScript);
         let v = [vec![OP_PUSHDATA4, 0, 0, 1, 0], vec![0; 65535]].concat();
         test_err(&v, ScriptError::UnexpectedEndOfScript);
+        let sig_verifier = StubSigVerifier {};
+        let stack = StackImpl::new(0, 1);
+        let vm = StubVm { stack };
+        let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
+        assert!(matches!(
+            interpreter.execute(&[OP_PUSHDATA4, 1, 0, 0, 0, 0]),
+            Err(ExecuteError::Stack(StackError::Overflow))
+        ));
     }
 
     #[test]
@@ -2213,6 +2237,23 @@ mod tests {
                 vec![OP_FUND],
             ]
             .concat(),
+        );
+    }
+
+    #[test]
+    fn out_of_memory() {
+        test_err(
+            &[vec![OP_PUSHDATA1, 255], vec![0; 255], vec![OP_DUP; 1024]].concat(),
+            ExecuteError::Stack(StackError::Overflow),
+        );
+        test_err(
+            &[
+                vec![OP_PUSHDATA1, 255],
+                vec![0; 255],
+                vec![vec![OP_DUP, OP_CAT]; 32].concat(),
+            ]
+            .concat(),
+            ExecuteError::Stack(StackError::Overflow),
         );
     }
 }
