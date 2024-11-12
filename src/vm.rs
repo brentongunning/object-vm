@@ -61,7 +61,11 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn create(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let class_id: Id = self.stack().pop(decode_arr)??;
+        let object_id = self.wasm.create(&class_id)?;
+        self.stack().push(&object_id)?;
+        // TODO: outputs
+        Ok(())
     }
 
     fn call(&mut self) -> Result<(), VmError> {
