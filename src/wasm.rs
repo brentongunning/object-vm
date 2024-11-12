@@ -12,22 +12,27 @@ pub struct WasmImpl {}
 
 impl Wasm for WasmImpl {
     fn deploy(&mut self, _code: &[u8]) -> Result<Id, WasmError> {
+        // TODO
         unimplemented!();
     }
 
     fn create(&mut self, _class_id: &Id, _object_id: &Id) -> Result<(), WasmError> {
+        // TODO
         unimplemented!();
     }
 
     fn call(&mut self, _object_id: &Id) -> Result<(), WasmError> {
+        // TODO
         unimplemented!();
     }
 
     fn state(&mut self, _object_id: &Id) -> Result<(), WasmError> {
+        // TODO
         unimplemented!();
     }
 
     fn class(&mut self, _object_id: &Id) -> Result<Id, WasmError> {
+        // TODO
         unimplemented!();
     }
 }

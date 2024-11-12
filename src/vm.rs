@@ -118,6 +118,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn fund(&mut self) -> Result<(), VmError> {
+        // TODO
         unimplemented!();
     }
 
