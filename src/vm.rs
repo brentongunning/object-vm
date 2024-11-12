@@ -69,7 +69,9 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn call(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let object_id: Id = self.stack().pop(decode_arr)??;
+        self.wasm.call(&object_id)?;
+        Ok(())
     }
 
     fn state(&mut self) -> Result<(), VmError> {
