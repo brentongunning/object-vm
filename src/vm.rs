@@ -29,6 +29,7 @@ pub trait Vm {
 pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
+    caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
     // TODO: outputs
     deployed_code: HashMap<Id, Vec<u8>>,
@@ -39,6 +40,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
         Self {
             stack,
             wasm,
+            caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
             deployed_code: HashMap::new(),
         }
@@ -62,15 +64,25 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn create(&mut self) -> Result<(), VmError> {
         let class_id: Id = self.stack().pop(decode_arr)??;
-        let object_id = self.wasm.create(&class_id)?;
+        let object_id = [0; 32]; // TODO: generate object id
+        self.caller_stack.push(object_id);
+        self.wasm.create(&class_id, &object_id)?;
         self.stack().push(&object_id)?;
+        self.caller_stack.pop().unwrap();
         // TODO: outputs
         Ok(())
     }
 
     fn call(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack().pop(decode_arr)??;
-        self.wasm.call(&object_id)?;
+        let different_caller = !self.caller_stack.last().is_some_and(|x| x == &object_id);
+        if different_caller {
+            self.caller_stack.push(object_id);
+            self.wasm.call(&object_id)?;
+            self.caller_stack.pop().unwrap();
+        } else {
+            self.wasm.call(&object_id)?;
+        }
         Ok(())
     }
 

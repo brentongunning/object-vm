@@ -2,7 +2,7 @@ use crate::{core::Id, errors::WasmError};
 
 pub trait Wasm {
     fn deploy(&mut self, code: &[u8]) -> Result<Id, WasmError>;
-    fn create(&mut self, class_id: &Id) -> Result<Id, WasmError>;
+    fn create(&mut self, class_id: &Id, object_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
     fn state(&mut self, object_id: &Id) -> Result<(), WasmError>;
     fn class(&mut self, object_id: &Id) -> Result<Id, WasmError>;
@@ -15,7 +15,7 @@ impl Wasm for WasmImpl {
         unimplemented!();
     }
 
-    fn create(&mut self, _class_id: &Id) -> Result<Id, WasmError> {
+    fn create(&mut self, _class_id: &Id, _object_id: &Id) -> Result<(), WasmError> {
         unimplemented!();
     }
 
