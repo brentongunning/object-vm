@@ -81,7 +81,10 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn class(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let object_id: Id = self.stack().pop(decode_arr)??;
+        let class_id = self.wasm.class(&object_id)?;
+        self.stack().push(&class_id)?;
+        Ok(())
     }
 
     fn auth(&mut self) -> Result<(), VmError> {
