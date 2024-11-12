@@ -157,8 +157,8 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                         Err(StackError::BadElement)?;
                     }
                     let (left, right) = a.split_at(n as usize);
-                    self.vm.stack().push(&left.to_vec())?;
-                    self.vm.stack().push(&right.to_vec())?;
+                    self.vm.stack().push(left)?;
+                    self.vm.stack().push(right)?;
                 }
 
                 OP_SIZE => {
@@ -230,7 +230,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                         if b % 8 == 0 {
                             a[i] = if i >= b / 8 { a[i - b / 8] } else { 0 };
                         } else {
-                            let l = if i >= b / 8 + 1 { a[i - b / 8 - 1] } else { 0 };
+                            let l = if i > b / 8 { a[i - b / 8 - 1] } else { 0 };
                             let r = if i >= b / 8 { a[i - b / 8] } else { 0 };
                             a[i] = (l << (8 - b % 8)) | (r >> (b % 8));
                         }

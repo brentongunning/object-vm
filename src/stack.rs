@@ -148,8 +148,8 @@ pub fn decode_num<T: TryFrom<u64>>(elem: &[u8]) -> Result<T, StackError> {
     if sign == Sign::Minus || digits.len() > 1 {
         return Err(StackError::BadElement);
     }
-    let num_u64 = *digits.get(0).unwrap_or(&0);
-    Ok(num_u64.try_into().map_err(|_| StackError::BadElement)?)
+    let num_u64 = *digits.first().unwrap_or(&0);
+    num_u64.try_into().map_err(|_| StackError::BadElement)
 }
 
 pub fn decode_arr<T>(elem: &[u8]) -> Result<T, StackError>
