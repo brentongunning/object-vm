@@ -1,4 +1,9 @@
-use crate::{errors::VmError, stack::Stack};
+use crate::{
+    core::PubKey,
+    errors::VmError,
+    stack::{decode_arr, Stack},
+};
+use std::collections::HashSet;
 
 pub trait Vm {
     type Stack: Stack;
@@ -20,11 +25,15 @@ pub trait Vm {
 
 pub struct VmImpl<S: Stack> {
     stack: S,
+    pending_sigs: HashSet<PubKey>,
 }
 
 impl<S: Stack> VmImpl<S> {
     pub fn new(stack: S) -> Self {
-        Self { stack }
+        Self {
+            stack,
+            pending_sigs: HashSet::new(),
+        }
     }
 }
 
@@ -56,7 +65,9 @@ impl<S: Stack> Vm for VmImpl<S> {
     }
 
     fn auth(&mut self) -> Result<(), VmError> {
-        unimplemented!();
+        let pubkey: PubKey = self.stack().pop(decode_arr)??;
+        self.pending_sigs.remove(&pubkey);
+        Ok(())
     }
 
     fn uniquifier(&mut self) -> Result<(), VmError> {
