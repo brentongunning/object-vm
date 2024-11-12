@@ -1,10 +1,10 @@
 use crate::{
-    core::PubKey,
+    core::{Id, PubKey},
     errors::VmError,
     stack::{decode_arr, Stack},
     wasm::Wasm,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub trait Vm {
     type Stack: Stack;
@@ -30,6 +30,7 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
     pending_sigs: HashSet<PubKey>,
+    deployed_code: HashMap<Id, Vec<u8>>,
 }
 
 impl<S: Stack, W: Wasm> VmImpl<S, W> {
@@ -38,6 +39,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             stack,
             wasm,
             pending_sigs: HashSet::new(),
+            deployed_code: HashMap::new(),
         }
     }
 }
@@ -53,6 +55,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         let code = self.stack.pop(|x| x.to_vec())?;
         let class_id = self.wasm.deploy(&code)?;
         self.stack.push(&class_id)?;
+        self.deployed_code.insert(class_id, code);
         Ok(())
     }
 
@@ -94,13 +97,14 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stack::StackImpl;
+    use crate::{stack::StackImpl, wasm::WasmImpl};
 
     #[test]
     fn stack() {
         let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).ok();
-        let mut vm = VmImpl::new(stack);
+        let wasm = WasmImpl {};
+        let mut vm = VmImpl::new(stack, wasm);
         assert_eq!(vm.stack().pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
     }
 }
