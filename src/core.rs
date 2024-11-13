@@ -21,6 +21,7 @@ pub struct Tx {
     pub script: Vec<u8>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {
     Class {
         code: Vec<u8>,
@@ -367,6 +368,65 @@ mod tests {
         }
         .write(&mut FailingWriter {})
         .is_err());
+    }
+
+    #[test]
+    fn output_read() {
+        let output = Output::from_bytes(&[0, 0]).unwrap();
+        assert_eq!(output, Output::Class { code: vec![] });
+
+        let output = Output::from_bytes(&[0, 3, 1, 2, 3]).unwrap();
+        assert_eq!(
+            output,
+            Output::Class {
+                code: vec![1, 2, 3]
+            }
+        );
+
+        let output = Output::from_bytes(&[vec![0, 0xfd, 2, 1], vec![0; 258]].concat()).unwrap();
+        assert_eq!(output, Output::Class { code: vec![0; 258] });
+
+        let output =
+            Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 32], vec![0]].concat()).unwrap();
+        assert_eq!(
+            output,
+            Output::Object {
+                class_id: [1; 32],
+                revision_id: [2; 32],
+                state: vec![]
+            }
+        );
+
+        let output = Output::from_bytes(
+            &[
+                vec![1],
+                vec![1; 32],
+                vec![2; 32],
+                vec![0xfd, 2, 1],
+                vec![0; 258],
+            ]
+            .concat(),
+        )
+        .unwrap();
+        assert_eq!(
+            output,
+            Output::Object {
+                class_id: [1; 32],
+                revision_id: [2; 32],
+                state: vec![0; 258]
+            }
+        );
+
+        assert!(Output::read(&mut FailingReader {}).is_err());
+
+        assert!(Output::from_bytes(&[]).is_err());
+        assert!(Output::from_bytes(&[2]).is_err());
+        assert!(Output::from_bytes(&[0, 1]).is_err());
+        assert!(Output::from_bytes(&[vec![1], vec![1; 31]].concat()).is_err());
+        assert!(Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 31]].concat()).is_err());
+        assert!(
+            Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 32], vec![1]].concat()).is_err()
+        );
     }
 
     #[test]
