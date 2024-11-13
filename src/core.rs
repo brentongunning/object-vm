@@ -226,6 +226,31 @@ mod tests {
     }
 
     #[test]
+    fn output_id() {
+        use super::blake3d;
+
+        let output = Output::Class {
+            code: vec![OP_1, OP_2, OP_3],
+        };
+        assert_eq!(output.id(), blake3d(&output.to_vec()));
+
+        let output_id = "57d2fca7ce2e14e0b4ac726307435051e5e8a2f4a79d030a486cc6c3f4d22265";
+        let output_id: Id = hex::decode(output_id).unwrap().try_into().unwrap();
+        assert_eq!(&output.id(), &output_id);
+
+        let output = Output::Object {
+            class_id: [1; ID_LEN],
+            revision_id: [2; ID_LEN],
+            state: vec![OP_1, OP_2, OP_3],
+        };
+        assert_eq!(output.id(), blake3d(&output.to_vec()));
+
+        let output_id = "827f397c3efc694e2bafdc556c4cfea494b29492559774ce2775ab674e30833f";
+        let output_id: Id = hex::decode(output_id).unwrap().try_into().unwrap();
+        assert_eq!(&output.id(), &output_id);
+    }
+
+    #[test]
     fn read_write_to_vec() {
         struct Test {}
 
