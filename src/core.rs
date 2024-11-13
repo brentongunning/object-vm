@@ -7,6 +7,9 @@ pub const SIG_LEN: usize = 64;
 
 pub const TX_VERSION: u8 = 1;
 
+pub const OUTPUT_CLASS: u8 = 0;
+pub const OUTPUT_OBJECT: u8 = 1;
+
 pub type Id = [u8; ID_LEN];
 pub type Hash = [u8; HASH_LEN];
 pub type PubKey = [u8; PUBKEY_LEN];
@@ -16,6 +19,17 @@ pub type Sig = [u8; SIG_LEN];
 pub struct Tx {
     pub version: u8,
     pub script: Vec<u8>,
+}
+
+pub enum Output {
+    Class {
+        code: Vec<u8>,
+    },
+    Object {
+        class_id: Id,
+        revision_id: Id,
+        state: Vec<u8>,
+    },
 }
 
 impl Default for Tx {
@@ -53,6 +67,66 @@ impl ReadWrite for Tx {
         r.read_exact(&mut script)?;
 
         Ok(Tx { version, script })
+    }
+}
+
+impl Output {
+    pub fn id(&self) -> Id {
+        blake3d(&self.to_vec())
+    }
+}
+
+impl ReadWrite for Output {
+    fn write(&self, w: &mut impl Write) -> io::Result<()> {
+        match self {
+            Output::Class { code } => {
+                w.write_all(&[OUTPUT_CLASS])?;
+                write_varint(w, code.len() as u64)?;
+                w.write_all(code)
+            }
+            Output::Object {
+                class_id,
+                revision_id,
+                state,
+            } => {
+                w.write_all(&[OUTPUT_OBJECT])?;
+                w.write_all(class_id)?;
+                w.write_all(revision_id)?;
+                write_varint(w, state.len() as u64)?;
+                w.write_all(state)
+            }
+        }
+    }
+
+    fn read(r: &mut impl Read) -> io::Result<Self> {
+        let mut buf = [0; 1];
+        r.read_exact(&mut buf)?;
+        match buf[0] {
+            OUTPUT_CLASS => {
+                let len = read_varint(r)?;
+                let mut code = vec![0; len as usize];
+                r.read_exact(&mut code)?;
+                Ok(Output::Class { code })
+            }
+            OUTPUT_OBJECT => {
+                let mut class_id = [0; ID_LEN];
+                r.read_exact(&mut class_id)?;
+                let mut revision_id = [0; ID_LEN];
+                r.read_exact(&mut revision_id)?;
+                let len = read_varint(r)?;
+                let mut state = vec![0; len as usize];
+                r.read_exact(&mut state)?;
+                Ok(Output::Object {
+                    class_id,
+                    revision_id,
+                    state,
+                })
+            }
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bad output type",
+            )),
+        }
     }
 }
 
