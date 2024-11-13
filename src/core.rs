@@ -212,6 +212,14 @@ mod tests {
         }
     }
 
+    struct FailingReader {}
+
+    impl Read for FailingReader {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::new(io::ErrorKind::Other, "err"))
+        }
+    }
+
     #[test]
     fn tx_id() {
         use super::blake3d;
@@ -223,6 +231,48 @@ mod tests {
         let tx_id = "5aa5eeed98cee8ec588bcaf32c1a931009c3221bc8fdc6a50ab20f30f93c1d52";
         let tx_id: Id = hex::decode(tx_id).unwrap().try_into().unwrap();
         assert_eq!(&tx.id(), &tx_id);
+    }
+
+    #[test]
+    fn tx_write() {
+        assert_eq!(Tx::default().to_vec(), vec![1, 0]);
+
+        let mut tx = Tx::default();
+        tx.script = vec![OP_1, OP_2, OP_3];
+        assert_eq!(tx.to_vec(), vec![1, 3, 81, 82, 83]);
+
+        let mut tx = Tx::default();
+        tx.script = vec![0; 258];
+        assert_eq!(tx.to_vec(), [vec![1, 0xfd, 2, 1], vec![0; 258]].concat());
+
+        assert!(tx.write(&mut FailingWriter {}).is_err());
+    }
+
+    #[test]
+    fn tx_read() {
+        let tx = Tx::from_bytes(&[1, 0]).unwrap();
+        assert_eq!(tx.version, 1);
+        assert_eq!(tx.script, vec![]);
+
+        let buf = vec![1, 3, 81, 82, 83];
+        let tx = Tx::from_bytes(&buf).unwrap();
+        assert_eq!(tx.version, 1);
+        assert_eq!(tx.script, vec![OP_1, OP_2, OP_3]);
+
+        let buf = [vec![1, 0xfd, 2, 1], vec![0; 258]].concat();
+        let tx = Tx::from_bytes(&buf).unwrap();
+        assert_eq!(tx.version, 1);
+        assert_eq!(tx.script, vec![0; 258]);
+
+        assert!(Tx::read(&mut FailingReader {}).is_err());
+
+        assert!(Tx::from_bytes(&[]).is_err());
+        assert!(Tx::from_bytes(&[0]).is_err());
+        assert!(Tx::from_bytes(&[1]).is_err());
+        assert!(Tx::from_bytes(&[1, 1]).is_err());
+        assert!(Tx::from_bytes(&[1, 3, 1, 2]).is_err());
+        assert!(Tx::from_bytes(&[0, 0]).is_err());
+        assert!(Tx::from_bytes(&[2, 0]).is_err());
     }
 
     #[test]
