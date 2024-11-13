@@ -274,6 +274,7 @@ mod tests {
         assert!(Tx::from_bytes(&[1, 3, 1, 2]).is_err());
         assert!(Tx::from_bytes(&[0, 0]).is_err());
         assert!(Tx::from_bytes(&[2, 0]).is_err());
+        assert!(Tx::from_bytes(&[1, 0, 1]).is_err());
     }
 
     #[test]
@@ -426,6 +427,10 @@ mod tests {
         assert!(Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 31]].concat()).is_err());
         assert!(
             Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 32], vec![1]].concat()).is_err()
+        );
+        assert!(Output::from_bytes(&[0, 1, 1, 1]).is_err());
+        assert!(
+            Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 32], vec![0, 1]].concat()).is_err()
         );
     }
 
