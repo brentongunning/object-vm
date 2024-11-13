@@ -300,6 +300,75 @@ mod tests {
         assert_eq!(&output.id(), &output_id);
     }
 
+    // TODO: Check specific errors
+
+    #[test]
+    fn output_write() {
+        assert_eq!(Output::Class { code: vec![] }.to_vec(), vec![0, 0]);
+
+        assert_eq!(
+            Output::Class {
+                code: vec![1, 2, 3]
+            }
+            .to_vec(),
+            vec![0, 3, 1, 2, 3]
+        );
+
+        assert_eq!(
+            Output::Class { code: vec![0; 258] }.to_vec(),
+            [vec![0, 0xfd, 2, 1], vec![0; 258]].concat()
+        );
+
+        assert_eq!(
+            Output::Object {
+                class_id: [1; ID_LEN],
+                revision_id: [2; ID_LEN],
+                state: vec![]
+            }
+            .to_vec(),
+            [vec![1], vec![1; ID_LEN], vec![2; ID_LEN], vec![0]].concat()
+        );
+
+        assert_eq!(
+            Output::Object {
+                class_id: [1; ID_LEN],
+                revision_id: [2; ID_LEN],
+                state: vec![1, 2, 3]
+            }
+            .to_vec(),
+            [vec![1], vec![1; ID_LEN], vec![2; ID_LEN], vec![3, 1, 2, 3]].concat()
+        );
+
+        assert_eq!(
+            Output::Object {
+                class_id: [1; ID_LEN],
+                revision_id: [2; ID_LEN],
+                state: vec![0; 258]
+            }
+            .to_vec(),
+            [
+                vec![1],
+                vec![1; ID_LEN],
+                vec![2; ID_LEN],
+                vec![0xfd, 2, 1],
+                vec![0; 258]
+            ]
+            .concat()
+        );
+
+        assert!(Output::Class { code: vec![] }
+            .write(&mut FailingWriter {})
+            .is_err());
+
+        assert!(Output::Object {
+            class_id: [1; ID_LEN],
+            revision_id: [2; ID_LEN],
+            state: vec![1, 2, 3]
+        }
+        .write(&mut FailingWriter {})
+        .is_err());
+    }
+
     #[test]
     fn read_write_to_vec() {
         struct Test {}
