@@ -456,11 +456,11 @@ mod tests {
         type Stack = StackImpl;
 
         fn begin(&mut self) -> Result<(), VmError> {
-            Ok(())
+            self.check_expectation("begin")
         }
 
         fn end(&mut self) -> Result<(), VmError> {
-            Ok(())
+            self.check_expectation("end")
         }
 
         fn stack(&mut self) -> &mut Self::Stack {
@@ -661,6 +661,14 @@ mod tests {
     #[test]
     fn empty() {
         test_ok(&[]);
+    }
+
+    #[test]
+    fn begin_and_end() {
+        test_ok_with_mock_vm(&[], |vm| {
+            vm.expect("begin", vec![], vec![], Ok(()));
+            vm.expect("end", vec![], vec![], Ok(()));
+        });
     }
 
     #[test]
@@ -1660,7 +1668,9 @@ mod tests {
         test_ok_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
@@ -1680,8 +1690,10 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 1, Ok(()));
@@ -1696,12 +1708,16 @@ mod tests {
                 vec![OP_ENDIF],
             ]
             .concat(),
-            |_mock_vm| {},
+            |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
+            },
             |_mock_sig_verifier| {},
         );
         test_err_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "auth",
                     vec![vec![1; PUBKEY_LEN]],
@@ -1716,7 +1732,9 @@ mod tests {
         );
         test_err_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
-            |_mock_vm| {},
+            |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
+            },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect(
                     [1; PUBKEY_LEN],
@@ -1745,7 +1763,9 @@ mod tests {
         test_ok_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 0, Ok(()));
@@ -1765,8 +1785,10 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect([1; PUBKEY_LEN], [2; SIG_LEN], 1, Ok(()));
@@ -1781,12 +1803,16 @@ mod tests {
                 vec![OP_ENDIF],
             ]
             .concat(),
-            |_mock_vm| {},
+            |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
+            },
             |_mock_sig_verifier| {},
         );
         test_err_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "auth",
                     vec![vec![1; PUBKEY_LEN]],
@@ -1801,7 +1827,9 @@ mod tests {
         );
         test_err_with_mock_vm_and_sig_verifier(
             &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
-            |_mock_vm| {},
+            |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
+            },
             |mock_sig_verifier| {
                 mock_sig_verifier.expect(
                     [1; PUBKEY_LEN],
@@ -1833,11 +1861,14 @@ mod tests {
         test_err(&v, ScriptError::UnexpectedEndOfScript);
         let v = [vec![OP_UNIQUIFIER], vec![1; ID_LEN]].concat();
         test_ok_with_mock_vm(&v, |mock_vm| {
+            mock_vm.expect("begin", vec![], vec![], Ok(()));
             mock_vm.expect("uniquifier", vec![vec![1; ID_LEN]], vec![], Ok(()));
+            mock_vm.expect("end", vec![], vec![], Ok(()));
         });
         test_err_with_mock_vm(
             &v,
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "uniquifier",
                     vec![vec![1; ID_LEN]],
@@ -1854,13 +1885,16 @@ mod tests {
         test_ok_with_mock_vm_and_stack(
             &[vec![OP_2], vec![OP_DEPLOY]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("deploy", vec![vec![2]], vec![vec![1; ID_LEN]], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             vec![vec![1; ID_LEN]],
         );
         test_err_with_mock_vm(
             &[vec![OP_2], vec![OP_DEPLOY]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "deploy",
                     vec![vec![2]],
@@ -1886,12 +1920,14 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "create",
                     vec![vec![1; ID_LEN]],
                     vec![vec![2; ID_LEN]],
                     Ok(()),
                 );
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             vec![vec![2; ID_LEN]],
         );
@@ -1903,6 +1939,7 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "create",
                     vec![vec![0; ID_LEN]],
@@ -1941,12 +1978,15 @@ mod tests {
         test_ok_with_mock_vm(
             &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_CALL]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("call", vec![vec![1; ID_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
         );
         test_err_with_mock_vm(
             &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_CALL]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "call",
                     vec![vec![1; ID_LEN]],
@@ -1999,12 +2039,14 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "state",
                     vec![vec![1; ID_LEN]],
                     vec![vec![1, 2, 3, 4]],
                     Ok(()),
                 );
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             vec![vec![1, 2, 3, 4]],
         );
@@ -2016,6 +2058,7 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "state",
                     vec![vec![1; ID_LEN]],
@@ -2059,12 +2102,14 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "class",
                     vec![vec![1; ID_LEN]],
                     vec![vec![2; ID_LEN]],
                     Ok(()),
                 );
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             vec![vec![2; ID_LEN]],
         );
@@ -2076,6 +2121,7 @@ mod tests {
             ]
             .concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "class",
                     vec![vec![1; ID_LEN]],
@@ -2114,12 +2160,15 @@ mod tests {
         test_ok_with_mock_vm(
             &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_FUND]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect("fund", vec![vec![1; ID_LEN]], vec![], Ok(()));
+                mock_vm.expect("end", vec![], vec![], Ok(()));
             },
         );
         test_err_with_mock_vm(
             &[vec![OP_PUSH + ID_LEN as u8], vec![1; ID_LEN], vec![OP_FUND]].concat(),
             |mock_vm| {
+                mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
                     "fund",
                     vec![vec![1; ID_LEN]],
