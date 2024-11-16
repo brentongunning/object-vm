@@ -58,8 +58,8 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     type Stack = S;
 
     fn begin(&mut self) -> Result<(), VmError> {
-        // TODO: reset wasm
         self.stack.clear();
+        self.wasm.reset()?;
         self.caller_stack.clear();
         self.pending_sigs.clear();
         self.pending_uniquifiers.clear();

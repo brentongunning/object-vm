@@ -1,6 +1,7 @@
 use crate::{core::Id, errors::WasmError};
 
 pub trait Wasm {
+    fn reset(&mut self) -> Result<(), WasmError>;
     fn deploy(&mut self, code: &[u8]) -> Result<Id, WasmError>;
     fn create(&mut self, class_id: &Id, object_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
@@ -11,6 +12,11 @@ pub trait Wasm {
 pub struct WasmImpl {}
 
 impl Wasm for WasmImpl {
+    fn reset(&mut self) -> Result<(), WasmError> {
+        // TODO
+        unimplemented!();
+    }
+
     fn deploy(&mut self, _code: &[u8]) -> Result<Id, WasmError> {
         // TODO
         unimplemented!();
