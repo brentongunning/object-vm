@@ -1,5 +1,5 @@
 use crate::{
-    core::{Id, PubKey},
+    core::{Id, Output, PubKey},
     errors::VmError,
     stack::{decode_arr, Stack},
     wasm::Wasm,
@@ -13,7 +13,7 @@ pub trait Vm {
 
     fn begin(&mut self) -> Result<(), VmError>;
     fn end(&mut self) -> Result<(), VmError>;
-
+    fn outputs(&mut self, f: impl FnMut(&Id, &Output)) -> Result<(), VmError>;
     fn stack(&mut self) -> &mut Self::Stack;
 
     fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
@@ -37,8 +37,7 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
     pending_uniquifiers: HashSet<Id>,
-    // TODO: outputs
-    deployed_code: HashMap<Id, Vec<u8>>,
+    outputs: HashMap<Id, Output>,
 }
 
 impl<S: Stack, W: Wasm> VmImpl<S, W> {
@@ -49,7 +48,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
             pending_uniquifiers: HashSet::new(),
-            deployed_code: HashMap::new(),
+            outputs: HashMap::new(),
         }
     }
 }
@@ -63,7 +62,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         self.caller_stack.clear();
         self.pending_sigs.clear();
         self.pending_uniquifiers.clear();
-        self.deployed_code.clear();
+        self.outputs.clear();
         Ok(())
     }
 
@@ -77,6 +76,11 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         Ok(())
     }
 
+    fn outputs(&mut self, mut f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+        self.outputs.iter().for_each(|(id, output)| f(id, output));
+        Ok(())
+    }
+
     fn stack(&mut self) -> &mut Self::Stack {
         &mut self.stack
     }
@@ -85,7 +89,8 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         let code = self.stack.pop(|x| x.to_vec())?;
         let class_id = self.wasm.deploy(&code)?;
         self.stack.push(&class_id)?;
-        self.deployed_code.insert(class_id, code);
+        let output = Output::Class { code };
+        self.outputs.insert(class_id, output);
         Ok(())
     }
 

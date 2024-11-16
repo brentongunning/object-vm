@@ -338,6 +338,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
 mod tests {
     use super::*;
     use crate::{
+        core::Output,
         errors::{VerifyError, VmError},
         stack::{decode_arr, StackImpl},
     };
@@ -356,6 +357,10 @@ mod tests {
         fn end(&mut self) -> Result<(), VmError> {
             Ok(())
         }
+
+        fn outputs(&mut self, _f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+            Ok(())
+    }
 
         fn stack(&mut self) -> &mut Self::Stack {
             &mut self.stack
@@ -461,6 +466,11 @@ mod tests {
 
         fn end(&mut self) -> Result<(), VmError> {
             self.check_expectation("end")
+        }
+
+        fn outputs(&mut self, _f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+            self.check_expectation("outputs")?;
+            Ok(())
         }
 
         fn stack(&mut self) -> &mut Self::Stack {
