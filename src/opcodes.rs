@@ -86,11 +86,15 @@ pub const OP_BLAKE3: u8 = 145;
 pub const OP_SHA256: u8 = 146;
 
 // Authorization
-pub const OP_SIGN: u8 = 147; // Next 96 bytes is the pubkey and signature.
+// Next 96 bytes is the pubkey and signature. The reason the pubkey and signature follow the
+// opcode rather than read it from the stack is to force a structure for verification.
+pub const OP_SIGN: u8 = 147;
 pub const OP_SIGNTO: u8 = 148;
 
 // Transaction
-pub const OP_UNIQUIFIER: u8 = 149; // Ensures tx id is unique. Next 32 bytes is a revision id.
+// Ensures tx id is unique. Next 32 bytes is a revision id. The reason the id follows the opcode
+// rather than reads it from the stack is to force it to be part of the tx script.
+pub const OP_UNIQUIFIER: u8 = 149;
 
 // Objects
 pub const OP_DEPLOY: u8 = 150;
