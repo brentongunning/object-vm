@@ -88,13 +88,13 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
         let mut object_ids = vec![];
         self.wasm.objects(|id| object_ids.push(*id))?;
-        for id in object_ids {
-            let class_id = *self.wasm.class(&id)?;
-            let state = self.wasm.state(&id)?.to_vec();
+        for object_id in object_ids {
+            let class_id = *self.wasm.class(&object_id)?;
             let mut revision_id = [0; 32];
-            (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ id[i]);
+            (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ object_id[i]);
+            let state = self.wasm.state(&object_id)?.to_vec();
             self.outputs.insert(
-                id,
+                object_id,
                 Output::Object {
                     class_id,
                     revision_id,
@@ -279,6 +279,12 @@ mod tests {
 
     #[test]
     fn fund() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn caller() {
         // TODO
         unimplemented!();
     }
