@@ -1,6 +1,6 @@
 use crate::{
     coin::COIN_CLASS_ID,
-    core::{blake3d, Id, Output, PubKey},
+    core::{Id, Output, PubKey},
     errors::VmError,
     stack::{decode_arr, Stack},
     wasm::Wasm,
@@ -62,7 +62,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
         preimage[..32].copy_from_slice(&self.txid);
         preimage[32..].copy_from_slice(&self.num_new_objects.to_le_bytes());
         self.num_new_objects += 1;
-        blake3d(&preimage)
+        blake3::hash(&preimage).into()
     }
 }
 
@@ -125,7 +125,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn deploy(&mut self) -> Result<(), VmError> {
         let code = self.stack.pop(|x| x.to_vec())?;
-        let class_id = blake3d(&code);
+        let class_id = blake3::hash(&code).into();
         self.wasm.deploy(&code, &class_id)?;
         self.stack.push(&class_id)?;
         let output = Output::Class { code };

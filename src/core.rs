@@ -44,7 +44,7 @@ impl Default for Tx {
 
 impl Tx {
     pub fn id(&self) -> Id {
-        blake3d(&self.to_vec())
+        blake3::hash(&self.to_vec()).into()
     }
 }
 
@@ -73,7 +73,7 @@ impl ReadWrite for Tx {
 
 impl Output {
     pub fn id(&self) -> Id {
-        blake3d(&self.to_vec())
+        blake3::hash(&self.to_vec()).into()
     }
 }
 
@@ -129,10 +129,6 @@ impl ReadWrite for Output {
             )),
         }
     }
-}
-
-pub fn blake3d(data: &[u8]) -> Hash {
-    blake3::hash(blake3::hash(data).as_bytes()).into()
 }
 
 pub trait ReadWrite {
@@ -223,13 +219,12 @@ mod tests {
 
     #[test]
     fn tx_id() {
-        use super::blake3d;
-
         let mut tx = Tx::default();
         tx.script = vec![OP_1, OP_2, OP_3];
-        assert_eq!(tx.id(), blake3d(&tx.to_vec()));
+        let expected: Id = blake3::hash(&tx.to_vec()).into();
+        assert_eq!(tx.id(), expected);
 
-        let tx_id = "5aa5eeed98cee8ec588bcaf32c1a931009c3221bc8fdc6a50ab20f30f93c1d52";
+        let tx_id = "6babffa1185250c6b39fc70f1f4b377885422cf541938e7df522556a35ec0c00";
         let tx_id: Id = hex::decode(tx_id).unwrap().try_into().unwrap();
         assert_eq!(&tx.id(), &tx_id);
     }
@@ -279,14 +274,13 @@ mod tests {
 
     #[test]
     fn output_id() {
-        use super::blake3d;
-
         let output = Output::Class {
             code: vec![OP_1, OP_2, OP_3],
         };
-        assert_eq!(output.id(), blake3d(&output.to_vec()));
+        let expected: Id = blake3::hash(&output.to_vec()).into();
+        assert_eq!(output.id(), expected);
 
-        let output_id = "57d2fca7ce2e14e0b4ac726307435051e5e8a2f4a79d030a486cc6c3f4d22265";
+        let output_id = "5e2eb063cfb0433d7be46a60256f0ac2f74e7fc2e272ab16440c0dcf5e49c4f2";
         let output_id: Id = hex::decode(output_id).unwrap().try_into().unwrap();
         assert_eq!(&output.id(), &output_id);
 
@@ -295,9 +289,10 @@ mod tests {
             revision_id: [2; ID_LEN],
             state: vec![OP_1, OP_2, OP_3],
         };
-        assert_eq!(output.id(), blake3d(&output.to_vec()));
+        let expected: Id = blake3::hash(&output.to_vec()).into();
+        assert_eq!(output.id(), expected);
 
-        let output_id = "827f397c3efc694e2bafdc556c4cfea494b29492559774ce2775ab674e30833f";
+        let output_id = "21d7684a26b22191fffc26a1206e4425f8a89142d382043fc3be86cd4f8a2fd9";
         let output_id: Id = hex::decode(output_id).unwrap().try_into().unwrap();
         assert_eq!(&output.id(), &output_id);
     }
@@ -472,21 +467,6 @@ mod tests {
         Test::from_bytes(&[1, 2, 3, 4]).unwrap();
         assert!(Test::from_bytes(&[]).is_err());
         assert!(Test::from_bytes(&[1, 2, 3, 4, 5]).is_err())
-    }
-
-    #[test]
-    fn blake3d() {
-        use super::blake3d;
-
-        let data = b"";
-        let hash = blake3d(data);
-        let expected = "82878ed8a480ee41775636820e05a934ca5c747223ca64306658ee5982e6c227";
-        assert_eq!(hex::encode(hash), expected);
-
-        let data = b"hello world";
-        let hash = blake3d(data);
-        let expected = "642d9fa590c86290761657e9f2be8de96164f3a85177e8fbf698a1e5211576af";
-        assert_eq!(hex::encode(hash), expected);
     }
 
     #[test]

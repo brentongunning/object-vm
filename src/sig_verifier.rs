@@ -68,7 +68,7 @@ fn clear_sigs(script: &mut [u8]) -> Result<(), ScriptError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{blake3d, ReadWrite, Tx};
+    use crate::core::{Id, ReadWrite, Tx};
 
     #[test]
     fn verify_sign() {
@@ -214,9 +214,8 @@ mod tests {
 
     #[test]
     fn verify_fixed() {
-        // let seckey = "80af45f9edb73c8720ede48ede78c1b0489ea611ac87c7027380b3ee996f37d1";
-        let pubkey = "63dbe722c84c7045c8e7770563fdeba746090476321494842c10b17c486f8b47";
-        let sig = "a950dcd9dca21ef209c9158129a8133b487c7dc362cae905ed6e4a2f69fd10e10689170f9769b3f91fcc6209902cad43fdbd9cbe6b02170bffddfc94b2426501";
+        let pubkey = "dc4cfabc05ca45762bc958ae223e1f5f7130bf86cea27de7eac527810ebc3e91";
+        let sig = "467039ef938d5e2fbcd0487a95dfc4c63ddbe4736b93baabd7fdd4f66d40c29fdd8c16534f0e369e134fb38e2ba3a6cd4d621be16b2d3ab6fbcbd236c4479408";
         use ed25519_dalek_blake3::{PublicKey, Signature};
         let pubkey = hex::decode(pubkey).unwrap();
         let pubkey = PublicKey::from_bytes(&pubkey).unwrap();
@@ -313,8 +312,9 @@ mod tests {
         tx2.script.extend_from_slice(&[OP_SIGN]);
         tx2.script.extend_from_slice(&[1; PUBKEY_LEN]);
         tx2.script.extend_from_slice(&[0; SIG_LEN]);
-        assert_eq!(sighash(&tx, 0).unwrap(), blake3d(&tx2.to_vec()));
-        let s = "0577959c0cb4de5242e4db8c750e1c418acea4850e59b479e263b29838bfba98";
+        let expected: Id = blake3::hash(&tx2.to_vec()).into();
+        assert_eq!(sighash(&tx, 0).unwrap(), expected);
+        let s = "63786c7448592ce7f832ef6d916eed52302ebc58404fd34d6e239c8548d8f93c";
         let h = sighash(&tx, 0).unwrap();
         assert_eq!(h.as_slice(), &hex::decode(s).unwrap());
     }
