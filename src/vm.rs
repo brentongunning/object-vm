@@ -82,9 +82,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         self.wasm.objects(|id| object_ids.push(*id))?;
         for id in object_ids {
             let class_id = self.wasm.class(&id)?;
-            // TODO: Push to stack and pop?
-            self.wasm.state(&id)?;
-            let state = self.stack.pop(|x| x.to_vec())?;
+            let state = self.wasm.state(&id, |x| x.to_vec())?;
             // TODO: Find a better way
             let mut revision_id = self.txid;
             revision_id[28..].copy_from_slice(&self.num_new_objects.to_le_bytes());
@@ -156,7 +154,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn state(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
-        self.wasm.state(&object_id)?;
+        self.wasm.state(&object_id, |x| self.stack.push(x))??;
         Ok(())
     }
 

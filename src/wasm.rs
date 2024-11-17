@@ -8,7 +8,7 @@ pub trait Wasm {
     fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<Id, WasmError>;
     fn create(&mut self, class_id: &Id, object_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
-    fn state(&mut self, object_id: &Id) -> Result<(), WasmError>;
+    fn state<T>(&mut self, object_id: &Id, f: impl FnMut(&[u8]) -> T) -> Result<T, WasmError>;
     fn class(&mut self, object_id: &Id) -> Result<Id, WasmError>;
 }
 
@@ -45,7 +45,7 @@ impl Wasm for WasmImpl {
         unimplemented!();
     }
 
-    fn state(&mut self, _object_id: &Id) -> Result<(), WasmError> {
+    fn state<T>(&mut self, _object_id: &Id, _f: impl FnMut(&[u8]) -> T) -> Result<T, WasmError> {
         // TODO
         unimplemented!();
     }
