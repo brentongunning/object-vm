@@ -56,6 +56,14 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             num_new_objects: 0,
         }
     }
+
+    fn new_object_id(&mut self) -> Id {
+        let mut preimage = [0; 36];
+        preimage[..32].copy_from_slice(&self.txid);
+        preimage[32..].copy_from_slice(&self.num_new_objects.to_le_bytes());
+        self.num_new_objects += 1;
+        blake3d(&preimage)
+    }
 }
 
 impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
@@ -83,10 +91,8 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         for id in object_ids {
             let class_id = self.wasm.class(&id)?;
             let state = self.wasm.state(&id, |x| x.to_vec())?;
-            // TODO: Find a better way
-            let mut revision_id = self.txid;
-            revision_id[28..].copy_from_slice(&self.num_new_objects.to_le_bytes());
-            self.num_new_objects += 1;
+            let mut revision_id = [0; 32];
+            (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ id[i]);
             self.outputs.insert(
                 id,
                 Output::Object {
@@ -129,9 +135,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn create(&mut self) -> Result<(), VmError> {
         let class_id: Id = self.stack.pop(decode_arr)??;
-        let mut object_id = self.txid;
-        object_id[28..].copy_from_slice(&self.num_new_objects.to_le_bytes());
-        self.num_new_objects += 1;
+        let object_id = self.new_object_id();
         self.caller_stack.push(object_id);
         self.wasm.create(&class_id, &object_id)?;
         self.stack.push(&object_id)?;
