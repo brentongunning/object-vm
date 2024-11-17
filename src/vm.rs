@@ -214,4 +214,6 @@ mod tests {
         let mut vm = VmImpl::new(stack, wasm);
         assert_eq!(vm.stack().pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
     }
+
+    // TODO: tests
 }
