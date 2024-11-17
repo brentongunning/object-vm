@@ -2,7 +2,7 @@ use crate::{
     coin::COIN_CLASS_ID,
     core::{Id, Output, PubKey},
     errors::VmError,
-    stack::{decode_arr, Stack},
+    stack::{decode_arr, decode_num, Stack},
     wasm::Wasm,
 };
 use std::collections::{HashMap, HashSet};
@@ -191,10 +191,12 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn caller(&mut self) -> Result<(), VmError> {
-        if let Some(object_id) = self.caller_stack.last() {
-            self.stack.push(object_id)?;
-        } else {
+        let index: u64 = self.stack.pop(decode_num)??;
+        if index >= self.caller_stack.len() as u64 {
             self.stack.push(&NULL_CALLER)?;
+        } else {
+            let i = self.caller_stack.len() - 1 - index as usize;
+            self.stack.push(&self.caller_stack[i])?;
         }
         Ok(())
     }
