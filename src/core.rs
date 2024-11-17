@@ -21,6 +21,7 @@ pub struct Tx {
     pub script: Vec<u8>,
 }
 
+// TODO: version
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {
     Class {
