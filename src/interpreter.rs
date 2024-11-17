@@ -14,7 +14,7 @@ pub trait Interpreter {
     type SigVerifier: SigVerifier;
     type Vm: Vm;
 
-    fn execute(&mut self, script: &[u8]) -> Result<(), ExecuteError>;
+    fn execute(&mut self, script: &[u8], txid: &Id) -> Result<(), ExecuteError>;
 }
 
 pub struct InterpreterImpl<S: SigVerifier, V: Vm> {
@@ -32,7 +32,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
     type SigVerifier = S;
     type Vm = V;
 
-    fn execute(&mut self, script: &[u8]) -> Result<(), ExecuteError> {
+    fn execute(&mut self, script: &[u8], txid: &Id) -> Result<(), ExecuteError> {
         let mut branch = vec![]; // true if executing current if/else branch
 
         let mut i = 0;
@@ -45,7 +45,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
             Ok(ret)
         }
 
-        self.vm.begin()?;
+        self.vm.begin(txid)?;
 
         while i < script.len() {
             if !branch.is_empty() && !branch.last().unwrap() {
@@ -350,7 +350,7 @@ mod tests {
     impl Vm for StubVm {
         type Stack = StackImpl;
 
-        fn begin(&mut self) -> Result<(), VmError> {
+        fn begin(&mut self, _txid: &Id) -> Result<(), VmError> {
             Ok(())
         }
 
@@ -360,7 +360,7 @@ mod tests {
 
         fn outputs(&mut self, _f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
             Ok(())
-    }
+        }
 
         fn stack(&mut self) -> &mut Self::Stack {
             &mut self.stack
@@ -460,7 +460,7 @@ mod tests {
     impl Vm for MockVm {
         type Stack = StackImpl;
 
-        fn begin(&mut self) -> Result<(), VmError> {
+        fn begin(&mut self, _txid: &Id) -> Result<(), VmError> {
             self.check_expectation("begin")
         }
 
@@ -565,7 +565,7 @@ mod tests {
         let stack = StackImpl::new(262144, 262144, 1024);
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
-        match interpreter.execute(script) {
+        match interpreter.execute(script, &[0; 32]) {
             Ok(()) => assert!(result.is_ok()),
             Err(e) => assert_eq!(format!("{:?}", e), format!("{:?}", result.unwrap_err())),
         }
@@ -614,7 +614,7 @@ mod tests {
         setup_vm(&mut vm);
         setup_sig_verifier(&mut sig_verifier);
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
-        match interpreter.execute(script) {
+        match interpreter.execute(script, &[0; 32]) {
             Ok(()) => assert!(result.is_ok()),
             Err(e) => assert_eq!(format!("{:?}", e), format!("{:?}", result.unwrap_err())),
         }
@@ -770,7 +770,7 @@ mod tests {
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(
-            interpreter.execute(&[OP_PUSHDATA1, 1, 0]),
+            interpreter.execute(&[OP_PUSHDATA1, 1, 0], &[0; 32]),
             Err(ExecuteError::Stack(StackError::Overflow))
         ));
     }
@@ -798,7 +798,7 @@ mod tests {
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(
-            interpreter.execute(&[OP_PUSHDATA2, 1, 0, 0]),
+            interpreter.execute(&[OP_PUSHDATA2, 1, 0, 0], &[0; 32]),
             Err(ExecuteError::Stack(StackError::Overflow))
         ));
     }
@@ -828,7 +828,7 @@ mod tests {
         let vm = StubVm { stack };
         let mut interpreter = InterpreterImpl::new(sig_verifier, vm);
         assert!(matches!(
-            interpreter.execute(&[OP_PUSHDATA4, 1, 0, 0, 0, 0]),
+            interpreter.execute(&[OP_PUSHDATA4, 1, 0, 0, 0, 0], &[0; 32]),
             Err(ExecuteError::Stack(StackError::Overflow))
         ));
     }

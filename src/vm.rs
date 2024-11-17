@@ -11,7 +11,7 @@ const NULL_CALLER: Id = [0; 32];
 pub trait Vm {
     type Stack: Stack;
 
-    fn begin(&mut self) -> Result<(), VmError>;
+    fn begin(&mut self, txid: &Id) -> Result<(), VmError>;
     fn end(&mut self) -> Result<(), VmError>;
     fn outputs(&mut self, f: impl FnMut(&Id, &Output)) -> Result<(), VmError>;
     fn stack(&mut self) -> &mut Self::Stack;
@@ -34,10 +34,12 @@ pub trait Vm {
 pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
+    txid: Id,
     caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
     pending_uniquifiers: HashSet<Id>,
     outputs: HashMap<Id, Output>,
+    num_new_objects: u32,
 }
 
 impl<S: Stack, W: Wasm> VmImpl<S, W> {
@@ -45,10 +47,12 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
         Self {
             stack,
             wasm,
+            txid: [0; 32],
             caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
             pending_uniquifiers: HashSet::new(),
             outputs: HashMap::new(),
+            num_new_objects: 0,
         }
     }
 }
@@ -56,13 +60,15 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
 impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     type Stack = S;
 
-    fn begin(&mut self) -> Result<(), VmError> {
+    fn begin(&mut self, txid: &Id) -> Result<(), VmError> {
         self.stack.clear();
         self.wasm.reset()?;
+        self.txid = *txid;
         self.caller_stack.clear();
         self.pending_sigs.clear();
         self.pending_uniquifiers.clear();
         self.outputs.clear();
+        self.num_new_objects = 0;
         Ok(())
     }
 
@@ -72,6 +78,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         }
 
         // TODO: check uniquifiers
+        // Collect outputs from wasm
 
         Ok(())
     }
@@ -96,12 +103,13 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn create(&mut self) -> Result<(), VmError> {
         let class_id: Id = self.stack.pop(decode_arr)??;
-        let object_id = [0; 32]; // TODO: generate object id
+        let mut object_id = self.txid;
+        object_id[28..].copy_from_slice(&self.num_new_objects.to_le_bytes());
+        self.num_new_objects += 1;
         self.caller_stack.push(object_id);
         self.wasm.create(&class_id, &object_id)?;
         self.stack.push(&object_id)?;
         self.caller_stack.pop().unwrap();
-        // TODO: outputs
         Ok(())
     }
 
