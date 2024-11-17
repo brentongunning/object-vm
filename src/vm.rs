@@ -187,7 +187,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         if class_id != COIN_CLASS_ID {
             return Err(VmError::InvalidCoin);
         }
-        // TODO
+        // TODO: destroy the coin and increase the credits
         unimplemented!();
     }
 
