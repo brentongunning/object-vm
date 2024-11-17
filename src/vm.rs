@@ -90,7 +90,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         self.wasm.objects(|id| object_ids.push(*id))?;
         for id in object_ids {
             let class_id = self.wasm.class(&id)?;
-            let state = self.wasm.state(&id, |x| x.to_vec())?;
+            let state = self.wasm.state(&id)?.to_vec();
             let mut revision_id = [0; 32];
             (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ id[i]);
             self.outputs.insert(
@@ -158,7 +158,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn state(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
-        self.wasm.state(&object_id, |x| self.stack.push(x))??;
+        self.stack.push(self.wasm.state(&object_id)?)?;
         Ok(())
     }
 
