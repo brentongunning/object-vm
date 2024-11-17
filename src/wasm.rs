@@ -1,4 +1,4 @@
-use crate::{core::Id, errors::WasmError};
+use crate::{core::Id, errors::WasmError, misc::InputProvider};
 
 pub trait Wasm {
     fn reset(&mut self) -> Result<(), WasmError>;
@@ -12,9 +12,19 @@ pub trait Wasm {
     fn class(&mut self, object_id: &Id) -> Result<&Id, WasmError>;
 }
 
-pub struct WasmImpl {}
+pub struct WasmImpl<I: InputProvider> {
+    _input_provider: I,
+}
 
-impl Wasm for WasmImpl {
+impl<I: InputProvider> WasmImpl<I> {
+    pub fn new(input_provider: I) -> Self {
+        Self {
+            _input_provider: input_provider,
+        }
+    }
+}
+
+impl<I: InputProvider> Wasm for WasmImpl<I> {
     fn reset(&mut self) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
