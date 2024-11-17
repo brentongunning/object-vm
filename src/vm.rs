@@ -1,5 +1,5 @@
 use crate::{
-    core::{Id, Output, PubKey},
+    core::{blake3d, Id, Output, PubKey},
     errors::VmError,
     stack::{decode_arr, Stack},
     wasm::Wasm,
@@ -94,7 +94,8 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn deploy(&mut self) -> Result<(), VmError> {
         let code = self.stack.pop(|x| x.to_vec())?;
-        let class_id = self.wasm.deploy(&code)?;
+        let class_id = blake3d(&code);
+        self.wasm.deploy(&code, &class_id)?;
         self.stack.push(&class_id)?;
         let output = Output::Class { code };
         self.outputs.insert(class_id, output);
