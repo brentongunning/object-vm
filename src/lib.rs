@@ -2,6 +2,7 @@ pub mod coin;
 pub mod core;
 pub mod errors;
 pub mod interpreter;
+pub mod misc;
 pub mod opcodes;
 pub mod script;
 pub mod sig_verifier;
