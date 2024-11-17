@@ -80,19 +80,15 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
         let mut object_ids = vec![];
         self.wasm.objects(|id| object_ids.push(*id))?;
-
         for id in object_ids {
             let class_id = self.wasm.class(&id)?;
-
             // TODO: Push to stack and pop?
             self.wasm.state(&id)?;
             let state = self.stack.pop(|x| x.to_vec())?;
-
             // TODO: Find a better way
             let mut revision_id = self.txid;
             revision_id[28..].copy_from_slice(&self.num_new_objects.to_le_bytes());
             self.num_new_objects += 1;
-
             self.outputs.insert(
                 id,
                 Output::Object {
@@ -103,7 +99,13 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
             );
         }
 
-        // TODO: check uniquifiers
+        let mut revision_ids = HashSet::new();
+        self.wasm.inputs(|id| {
+            revision_ids.insert(*id);
+        })?;
+        if !self.pending_uniquifiers.is_subset(&revision_ids) {
+            return Err(VmError::MissingUniquifier);
+        }
 
         Ok(())
     }
