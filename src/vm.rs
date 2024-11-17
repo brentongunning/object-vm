@@ -89,7 +89,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         let mut object_ids = vec![];
         self.wasm.objects(|id| object_ids.push(*id))?;
         for id in object_ids {
-            let class_id = self.wasm.class(&id)?;
+            let class_id = *self.wasm.class(&id)?;
             let state = self.wasm.state(&id)?.to_vec();
             let mut revision_id = [0; 32];
             (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ id[i]);
@@ -164,8 +164,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn class(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
-        let class_id = self.wasm.class(&object_id)?;
-        self.stack.push(&class_id)?;
+        self.stack.push(self.wasm.class(&object_id)?)?;
         Ok(())
     }
 
@@ -184,7 +183,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     fn fund(&mut self) -> Result<(), VmError> {
         let object_id = self.stack.pop(decode_arr)??;
         let class_id = self.wasm.class(&object_id)?;
-        if class_id != COIN_CLASS_ID {
+        if *class_id != COIN_CLASS_ID {
             return Err(VmError::InvalidCoin);
         }
         // TODO: destroy the coin and increase the credits
