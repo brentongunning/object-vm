@@ -205,7 +205,53 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{stack::StackImpl, wasm::WasmImpl};
+    use crate::{
+        errors::{StackError, WasmError},
+        stack::StackImpl,
+        wasm::WasmImpl,
+    };
+
+    struct MockWasm {}
+
+    impl Wasm for MockWasm {
+        fn reset(&mut self) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn objects(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn inputs(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn deploy(&mut self, _code: &[u8], _class_id: &Id) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn create(&mut self, _class_id: &Id, _object_id: &Id) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn call(&mut self, _object_id: &Id) -> Result<(), WasmError> {
+            Ok(())
+        }
+
+        fn state(&mut self, _object_id: &Id) -> Result<&[u8], WasmError> {
+            Ok(&[])
+        }
+
+        fn class(&mut self, _object_id: &Id) -> Result<&Id, WasmError> {
+            Ok(&[0; 32])
+        }
+    }
+
+    fn mock_vm() -> VmImpl<StackImpl, MockWasm> {
+        let mock_wasm = MockWasm {};
+        let stack = StackImpl::new(1024, 256, 32);
+        VmImpl::new(stack, mock_wasm)
+    }
 
     #[test]
     fn begin() {
@@ -287,7 +333,48 @@ mod tests {
 
     #[test]
     fn caller() {
-        // TODO
-        unimplemented!();
+        let mut vm = mock_vm();
+        vm.stack().push(&0_u32.to_le_bytes()).ok();
+        vm.caller().unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+
+        let mock_wasm = MockWasm {};
+        let stack = StackImpl::new(1024, 256, 32);
+        let mut vm = VmImpl::new(stack, mock_wasm);
+        vm.stack().push(&1_u32.to_le_bytes()).ok();
+        vm.caller().unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+
+        let mut vm = mock_vm();
+        vm.caller_stack.push([1; 32]);
+        vm.stack().push(&0_u32.to_le_bytes()).ok();
+        vm.caller().unwrap();
+        vm.stack().last(|x| assert_eq!(x, &[1; 32])).unwrap();
+
+        let mut vm = mock_vm();
+        vm.caller_stack.push([1; 32]);
+        vm.stack().push(&1_u32.to_le_bytes()).ok();
+        vm.caller().unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+
+        let mut vm = mock_vm();
+        vm.caller_stack.push([1; 32]);
+        vm.caller_stack.push([2; 32]);
+        vm.stack().push(&1_u32.to_le_bytes()).ok();
+        vm.caller().unwrap();
+        vm.stack().last(|x| assert_eq!(x, &[1; 32])).unwrap();
+
+        let mut vm = mock_vm();
+        assert!(matches!(
+            vm.caller(),
+            Err(VmError::Stack(StackError::Underflow))
+        ));
+
+        let mut vm = mock_vm();
+        vm.stack().push(&[0, 0, 0, 0, 0, 0, 0, 0, 1]).ok();
+        assert!(matches!(
+            vm.caller(),
+            Err(VmError::Stack(StackError::BadElement))
+        ));
     }
 }
