@@ -207,13 +207,80 @@ mod tests {
     use crate::{stack::StackImpl, wasm::WasmImpl};
 
     #[test]
+    fn begin() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn end() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn outputs() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
     fn stack() {
         let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).ok();
         let wasm = WasmImpl {};
         let mut vm = VmImpl::new(stack, wasm);
         assert_eq!(vm.stack().pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
+
+        // TODO
+        unimplemented!();
     }
 
-    // TODO: tests
+    #[test]
+    fn deploy() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn create() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn call() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn state() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn class() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn auth() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn uniquifier() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn fund() {
+        // TODO
+        unimplemented!();
+    }
 }
