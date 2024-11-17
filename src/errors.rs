@@ -32,6 +32,7 @@ pub enum VerifyError {
 
 #[derive(Debug)]
 pub enum VmError {
+    InvalidCoin,
     // TODO: Remove this and replace with real errors
     Placeholder(String),
     Stack(StackError),

@@ -1,4 +1,5 @@
 use crate::{
+    coin::COIN_CLASS_ID,
     core::{blake3d, Id, Output, PubKey},
     errors::VmError,
     stack::{decode_arr, Stack},
@@ -153,6 +154,11 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn fund(&mut self) -> Result<(), VmError> {
+        let object_id = self.stack.pop(decode_arr)??;
+        let class_id = self.wasm.class(&object_id)?;
+        if class_id != COIN_CLASS_ID {
+            return Err(VmError::InvalidCoin);
+        }
         // TODO
         unimplemented!();
     }
