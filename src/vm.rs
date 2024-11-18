@@ -30,8 +30,6 @@ pub trait Vm {
     fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
 
-// TODO: Limits
-
 pub struct VmImpl<S: Stack, W: Wasm> {
     stack: S,
     wasm: W,
@@ -41,10 +39,20 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     pending_uniquifiers: HashSet<Id>,
     outputs: HashMap<Id, Output>,
     num_new_objects: u32,
+    limits: Limits, // TODO: Respect all fields
+}
+
+pub struct Limits {
+    pub max_classes: usize,
+    pub max_objects: usize,
+    pub max_bytecode_len: usize,
+    pub max_memory_pages: usize,
+    pub max_call_depth: usize,
+    pub max_gas: u64,
 }
 
 impl<S: Stack, W: Wasm> VmImpl<S, W> {
-    pub fn new(stack: S, wasm: W) -> Self {
+    pub fn new(stack: S, wasm: W, limits: Limits) -> Self {
         Self {
             stack,
             wasm,
@@ -54,6 +62,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             pending_uniquifiers: HashSet::new(),
             outputs: HashMap::new(),
             num_new_objects: 0,
+            limits,
         }
     }
 
@@ -125,6 +134,9 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn deploy(&mut self) -> Result<(), VmError> {
         let code = self.stack.pop(|x| x.to_vec())?;
+        if code.len() > self.limits.max_bytecode_len {
+            return Err(VmError::ExceededBytecodeLen);
+        }
         let class_id = blake3::hash(&code).into();
         self.wasm.deploy(&code, &class_id)?;
         self.stack.push(&class_id)?;
@@ -207,6 +219,7 @@ mod tests {
     use super::*;
     use crate::{
         errors::{StackError, WasmError},
+        misc::InputProviderImpl,
         stack::StackImpl,
         wasm::WasmImpl,
     };
@@ -250,7 +263,15 @@ mod tests {
     fn mock_vm() -> VmImpl<StackImpl, MockWasm> {
         let mock_wasm = MockWasm {};
         let stack = StackImpl::new(1024, 256, 32);
-        VmImpl::new(stack, mock_wasm)
+        let limits = Limits {
+            max_classes: 1024,
+            max_objects: 1024,
+            max_bytecode_len: 1024,
+            max_memory_pages: 1024,
+            max_call_depth: 1024,
+            max_gas: 1024,
+        };
+        VmImpl::new(stack, mock_wasm, limits)
     }
 
     #[test]
@@ -275,8 +296,17 @@ mod tests {
     fn stack() {
         let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).ok();
-        let wasm = WasmImpl {};
-        let mut vm = VmImpl::new(stack, wasm);
+        let inputs = InputProviderImpl::new();
+        let wasm = WasmImpl::new(inputs);
+        let limits = Limits {
+            max_classes: 1024,
+            max_objects: 1024,
+            max_bytecode_len: 1024,
+            max_memory_pages: 1024,
+            max_call_depth: 1024,
+            max_gas: 1024,
+        };
+        let mut vm = VmImpl::new(stack, wasm, limits);
         assert_eq!(vm.stack().pop(|x| x.to_vec()).unwrap(), vec![1, 2, 3]);
 
         // TODO
@@ -340,7 +370,15 @@ mod tests {
 
         let mock_wasm = MockWasm {};
         let stack = StackImpl::new(1024, 256, 32);
-        let mut vm = VmImpl::new(stack, mock_wasm);
+        let limits = Limits {
+            max_classes: 1024,
+            max_objects: 1024,
+            max_bytecode_len: 1024,
+            max_memory_pages: 1024,
+            max_call_depth: 1024,
+            max_gas: 1024,
+        };
+        let mut vm = VmImpl::new(stack, mock_wasm, limits);
         vm.stack().push(&1_u32.to_le_bytes()).ok();
         vm.caller().unwrap();
         vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();

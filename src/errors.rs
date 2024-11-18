@@ -37,6 +37,7 @@ pub enum VerifyError {
 
 #[derive(Debug)]
 pub enum VmError {
+    ExceededBytecodeLen,
     InvalidCoin,
     MissingUniquifier,
     // TODO: Remove this and replace with real errors
@@ -145,6 +146,7 @@ impl Display for VerifyError {
 impl Display for VmError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
+            VmError::ExceededBytecodeLen => write!(f, "Exceeded bytecode length"),
             VmError::InvalidCoin => write!(f, "Invalid coin"),
             VmError::MissingUniquifier => write!(f, "Missing uniquifier"),
             VmError::Placeholder(s) => write!(f, "Placeholder: {}", s),
