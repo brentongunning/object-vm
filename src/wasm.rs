@@ -1,5 +1,5 @@
 use crate::{
-    core::{Id, Object, ReadWrite},
+    core::{Id, Object, ReadWrite, NULL_ID},
     errors::WasmError,
     misc::ObjectProvider,
 };
@@ -36,7 +36,11 @@ pub trait Wasm {
     fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<(), WasmError>;
     fn create(&mut self, class_id: &Id, instance_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
-    fn state(&mut self, object_id: &Id) -> Result<&[u8], WasmError>;
+    fn state<T>(
+        &mut self,
+        object_id: &Id,
+        callback: impl FnMut(&[u8]) -> T,
+    ) -> Result<T, WasmError>;
     fn class<T>(&mut self, object_id: &Id, callback: impl FnMut(&Id) -> T) -> Result<T, WasmError>;
 }
 
@@ -99,7 +103,11 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         unimplemented!();
     }
 
-    fn state(&mut self, _object_id: &Id) -> Result<&[u8], WasmError> {
+    fn state<T>(
+        &mut self,
+        _object_id: &Id,
+        _callback: impl FnMut(&[u8]) -> T,
+    ) -> Result<T, WasmError> {
         // TODO
         unimplemented!();
     }
@@ -109,8 +117,12 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         object_id: &Id,
         mut callback: impl FnMut(&Id) -> T,
     ) -> Result<T, WasmError> {
-        if let Some(object) = self.instances.get(object_id) {
-            return Ok(callback(&object.class_id));
+        if let Some(class) = self.classes.get(object_id) {
+            return Ok(callback(&NULL_ID));
+        }
+
+        if let Some(instance) = self.instances.get(object_id) {
+            return Ok(callback(&instance.class_id));
         }
 
         self.object_provider.object(object_id, |bytes| {

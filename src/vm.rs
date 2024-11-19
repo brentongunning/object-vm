@@ -5,7 +5,7 @@ use crate::{
     stack::{decode_arr, decode_num, Stack},
     wasm::Wasm,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub trait Vm {
     type Stack: Stack;
@@ -36,7 +36,6 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
     pending_uniquifiers: HashSet<Id>,
-    objects: HashMap<Id, Object>,
     num_new_objects: u32,
     limits: Limits, // TODO: Respect all fields
 }
@@ -59,7 +58,6 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
             pending_uniquifiers: HashSet::new(),
-            objects: HashMap::new(),
             num_new_objects: 0,
             limits,
         }
@@ -84,7 +82,6 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         self.caller_stack.clear();
         self.pending_sigs.clear();
         self.pending_uniquifiers.clear();
-        self.objects.clear();
         self.num_new_objects = 0;
         Ok(())
     }
@@ -94,29 +91,11 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
             return Err(VmError::Unsigned);
         }
 
-        let mut object_ids = vec![];
-        self.wasm.object_ids(|id| object_ids.push(*id))?;
-        for object_id in object_ids {
-            let class_id = self.wasm.class(&object_id, |id| *id)?;
-            let mut revision_id = [0; 32];
-            (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ object_id[i]);
-            let state = self.wasm.state(&object_id)?.to_vec();
-            self.objects.insert(
-                object_id,
-                Object {
-                    version: OBJECT_VERSION,
-                    class_id,
-                    revision_id,
-                    state,
-                },
-            );
-        }
-
-        let mut revision_ids = HashSet::new();
         self.wasm.revision_ids(|id| {
-            revision_ids.insert(*id);
+            self.pending_uniquifiers.remove(id);
         })?;
-        if !self.pending_uniquifiers.is_subset(&revision_ids) {
+
+        if !self.pending_uniquifiers.is_empty() {
             return Err(VmError::MissingUniquifier);
         }
 
@@ -124,9 +103,29 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn objects(&mut self, mut callback: impl FnMut(&Id, &Object)) -> Result<(), VmError> {
-        self.objects
-            .iter()
-            .for_each(|(id, object)| callback(id, object));
+        let mut object_ids = vec![];
+        self.wasm.object_ids(|id| object_ids.push(*id))?;
+
+        for object_id in object_ids {
+            let class_id = self.wasm.class(&object_id, |id| *id)?;
+
+            let mut revision_id = NULL_ID;
+            if class_id != NULL_ID {
+                (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ object_id[i]);
+            }
+
+            let state = self.wasm.state(&object_id, |s| s.to_vec())?;
+
+            let object = Object {
+                version: OBJECT_VERSION,
+                class_id,
+                revision_id,
+                state,
+            };
+
+            callback(&object_id, &object);
+        }
+
         Ok(())
     }
 
@@ -136,35 +135,35 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn deploy(&mut self) -> Result<(), VmError> {
         let code = self.stack.pop(|x| x.to_vec())?;
+
         if code.len() > self.limits.max_bytecode_len {
             return Err(VmError::ExceededBytecodeLength);
         }
+
         let class_id = self.new_object_id();
-        let object = Object {
-            version: OBJECT_VERSION,
-            class_id: NULL_ID,
-            revision_id: NULL_ID,
-            state: code,
-        };
-        self.wasm.deploy(&object.state, &class_id)?;
+
+        self.wasm.deploy(&code, &class_id)?;
         self.stack.push(&class_id)?;
-        // TODO: Let wasm do this?
-        self.objects.insert(class_id, object);
+
         Ok(())
     }
 
     fn create(&mut self) -> Result<(), VmError> {
         let class_id: Id = self.stack.pop(decode_arr)??;
+
         let instance_id = self.new_object_id();
+
         self.caller_stack.push(instance_id);
         self.wasm.create(&class_id, &instance_id)?;
         self.stack.push(&instance_id)?;
         self.caller_stack.pop().unwrap();
+
         Ok(())
     }
 
     fn call(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
+
         let different_caller = !self.caller_stack.last().is_some_and(|x| x == &object_id);
         if different_caller {
             self.caller_stack.push(object_id);
@@ -173,12 +172,16 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         } else {
             self.wasm.call(&object_id)?;
         }
+
         Ok(())
     }
 
     fn state(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
-        self.stack.push(self.wasm.state(&object_id)?)?;
+
+        self.wasm
+            .state(&object_id, |state| self.stack.push(state))??;
+
         Ok(())
     }
 
@@ -266,12 +269,20 @@ mod tests {
             Ok(())
         }
 
-        fn state(&mut self, _object_id: &Id) -> Result<&[u8], WasmError> {
-            Ok(&[])
+        fn state<T>(
+            &mut self,
+            _object_id: &Id,
+            callback: impl FnMut(&[u8]) -> T,
+        ) -> Result<T, WasmError> {
+            Ok(callback(&[]))
         }
 
-        fn class(&mut self, _instance_id: &Id) -> Result<&Id, WasmError> {
-            Ok(&[0; 32])
+        fn class<T>(
+            &mut self,
+            _instance_id: &Id,
+            callback: FnMut(&Id) -> T,
+        ) -> Result<T, WasmError> {
+            Ok(callback(&NULL_ID))
         }
     }
 
