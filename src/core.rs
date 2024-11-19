@@ -22,6 +22,7 @@ pub struct Tx {
 }
 
 // TODO: version
+// TODO: merge?
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {
     Class {

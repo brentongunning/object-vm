@@ -137,6 +137,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         if code.len() > self.limits.max_bytecode_len {
             return Err(VmError::ExceededBytecodeLen);
         }
+        // TODO: This should include version / output
         let class_id = blake3::hash(&code).into();
         self.wasm.deploy(&code, &class_id)?;
         self.stack.push(&class_id)?;
