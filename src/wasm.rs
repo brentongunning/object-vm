@@ -207,9 +207,14 @@ pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), VmErro
 }
 
 fn check_exports(module: &Module) -> Result<(), VmError> {
-    let mut required_exports: HashSet<_> = ["load", "save", "create", "call"].into_iter().collect();
+    let mut allowed_exports: HashSet<_> = ["load", "save", "create", "call"].into_iter().collect();
+
+    let mut required_exports: HashSet<_> = ["load", "save", "create"].into_iter().collect();
 
     for export in module.exports() {
+        if !allowed_exports.remove(export.name()) {
+            return Err(VmError::BadImports);
+        }
         required_exports.remove(export.name());
 
         let func_type = export.ty().func().ok_or(VmError::BadExports)?;
