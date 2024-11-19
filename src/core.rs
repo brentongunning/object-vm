@@ -71,6 +71,10 @@ impl Object {
     pub fn hash(&self) -> Id {
         blake3::hash(&self.to_vec()).into()
     }
+
+    pub fn parse_class_id(buf: &[u8]) -> &Id {
+        (&buf[1..ID_LEN + 1]).try_into().expect("bad output")
+    }
 }
 
 impl ReadWrite for Object {

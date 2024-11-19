@@ -5,6 +5,8 @@ use std::{
 
 use wasmer::CompileError;
 
+use crate::core::Id;
+
 #[derive(Debug)]
 pub enum ExecuteError {
     DivideByZero,
@@ -54,7 +56,7 @@ pub enum WasmError {
     BadExports,
     BadImports,
     Compile(CompileError),
-    ObjectNotFound,
+    ObjectNotFound(Id),
 }
 
 impl Error for ExecuteError {}
@@ -176,7 +178,7 @@ impl Display for WasmError {
             WasmError::BadExports => write!(f, "Bad exports"),
             WasmError::BadImports => write!(f, "Bad imports"),
             WasmError::Compile(e) => write!(f, "Compile error: {:?}", e),
-            WasmError::ObjectNotFound => write!(f, "Object not found"),
+            WasmError::ObjectNotFound(id) => write!(f, "Object not found: {}", hex::encode(id)),
         }
     }
 }

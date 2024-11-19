@@ -1,5 +1,5 @@
 use crate::{
-    core::{Id, Object, ReadWrite, NULL_ID},
+    core::{Id, Object, NULL_ID},
     errors::WasmError,
     misc::ObjectProvider,
 };
@@ -117,7 +117,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         object_id: &Id,
         mut callback: impl FnMut(&Id) -> T,
     ) -> Result<T, WasmError> {
-        if let Some(class) = self.classes.get(object_id) {
+        if self.classes.contains_key(object_id) {
             return Ok(callback(&NULL_ID));
         }
 
@@ -127,10 +127,9 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
 
         self.object_provider.object(object_id, |bytes| {
             if let Some(bytes) = bytes {
-                let object = Object::from_bytes(&bytes)?;
-                Ok(callback(&object.class_id))
+                Ok(callback(&Object::parse_class_id(bytes)))
             } else {
-                Err(WasmError::ObjectNotFound)
+                Err(WasmError::ObjectNotFound(*object_id))
             }
         })
     }
