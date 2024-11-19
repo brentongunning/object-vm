@@ -101,7 +101,11 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         unimplemented!();
     }
 
-    fn class<T>(&mut self, object_id: &Id, callback: impl FnMut(&Id) -> T) -> Result<T, WasmError> {
+    fn class<T>(
+        &mut self,
+        object_id: &Id,
+        mut callback: impl FnMut(&Id) -> T,
+    ) -> Result<T, WasmError> {
         if let Some(object) = self.objects.get(object_id) {
             return Ok(callback(&object.class_id));
         }
@@ -109,11 +113,7 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         self.input_provider.input(object_id, |bytes| {
             if let Some(bytes) = bytes {
                 let output = Output::from_bytes(&bytes)?;
-                if let Output::Object { class_id, .. } = output {
-                    return Ok(callback(&class_id));
-                } else {
-                    Err(WasmError::BadOutput)
-                }
+                Ok(callback(&output.class_id))
             } else {
                 Err(WasmError::NotFound)
             }

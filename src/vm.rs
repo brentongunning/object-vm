@@ -1,13 +1,11 @@
 use crate::{
     coin::COIN_CLASS_ID,
-    core::{Id, Output, PubKey},
+    core::{Id, Output, PubKey, NULL_ID, OUTPUT_VERSION},
     errors::VmError,
     stack::{decode_arr, decode_num, Stack},
     wasm::Wasm,
 };
 use std::collections::{HashMap, HashSet};
-
-const NULL_CALLER: Id = [0; 32];
 
 pub trait Vm {
     type Stack: Stack;
@@ -105,7 +103,8 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
             let state = self.wasm.state(&object_id)?.to_vec();
             self.outputs.insert(
                 object_id,
-                Output::Object {
+                Output {
+                    version: OUTPUT_VERSION,
                     class_id,
                     revision_id,
                     state,
@@ -140,11 +139,16 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         if code.len() > self.limits.max_bytecode_len {
             return Err(VmError::ExceededBytecodeLength);
         }
-        // TODO: This should include version / output
-        let class_id = blake3::hash(&code).into();
-        self.wasm.deploy(&code, &class_id)?;
+        // TODO: Should class_id be same as output_id? Or come from deploys?
+        let output = Output {
+            version: OUTPUT_VERSION,
+            class_id: NULL_ID,
+            revision_id: NULL_ID,
+            state: code,
+        };
+        let class_id = output.id();
+        self.wasm.deploy(&output.state, &class_id)?;
         self.stack.push(&class_id)?;
-        let output = Output::Class { code };
         self.outputs.insert(class_id, output);
         Ok(())
     }
@@ -187,7 +191,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     fn caller(&mut self) -> Result<(), VmError> {
         let index: u64 = self.stack.pop(decode_num)??;
         if index >= self.caller_stack.len() as u64 {
-            self.stack.push(&NULL_CALLER)?;
+            self.stack.push(&NULL_ID)?;
         } else {
             let i = self.caller_stack.len() - 1 - index as usize;
             self.stack.push(&self.caller_stack[i])?;
@@ -377,7 +381,7 @@ mod tests {
         let mut vm = mock_vm();
         vm.stack().push(&0_u32.to_le_bytes()).ok();
         vm.caller().unwrap();
-        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_ID)).unwrap();
 
         let mock_wasm = MockWasm {};
         let stack = StackImpl::new(1024, 256, 32);
@@ -392,7 +396,7 @@ mod tests {
         let mut vm = VmImpl::new(stack, mock_wasm, limits);
         vm.stack().push(&1_u32.to_le_bytes()).ok();
         vm.caller().unwrap();
-        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_ID)).unwrap();
 
         let mut vm = mock_vm();
         vm.caller_stack.push([1; 32]);
@@ -404,7 +408,7 @@ mod tests {
         vm.caller_stack.push([1; 32]);
         vm.stack().push(&1_u32.to_le_bytes()).ok();
         vm.caller().unwrap();
-        vm.stack().last(|x| assert_eq!(x, &NULL_CALLER)).unwrap();
+        vm.stack().last(|x| assert_eq!(x, &NULL_ID)).unwrap();
 
         let mut vm = mock_vm();
         vm.caller_stack.push([1; 32]);

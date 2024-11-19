@@ -6,9 +6,9 @@ pub const PUBKEY_LEN: usize = 32;
 pub const SIG_LEN: usize = 64;
 
 pub const TX_VERSION: u8 = 1;
+pub const OUTPUT_VERSION: u8 = 1;
 
-pub const OUTPUT_CLASS: u8 = 0;
-pub const OUTPUT_OBJECT: u8 = 1;
+pub const NULL_ID: Id = [0; ID_LEN];
 
 pub type Id = [u8; ID_LEN];
 pub type Hash = [u8; HASH_LEN];
@@ -21,18 +21,12 @@ pub struct Tx {
     pub script: Vec<u8>,
 }
 
-// TODO: version
-// TODO: merge?
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Output {
-    Class {
-        code: Vec<u8>,
-    },
-    Object {
-        class_id: Id,
-        revision_id: Id,
-        state: Vec<u8>,
-    },
+pub struct Output {
+    pub version: u8,
+    pub class_id: Id,
+    pub revision_id: Id,
+    pub state: Vec<u8>,
 }
 
 impl Default for Tx {
@@ -81,55 +75,37 @@ impl Output {
 
 impl ReadWrite for Output {
     fn write(&self, w: &mut impl Write) -> io::Result<()> {
-        match self {
-            Output::Class { code } => {
-                w.write_all(&[OUTPUT_CLASS])?;
-                write_varint(w, code.len() as u64)?;
-                w.write_all(code)
-            }
-            Output::Object {
-                class_id,
-                revision_id,
-                state,
-            } => {
-                w.write_all(&[OUTPUT_OBJECT])?;
-                w.write_all(class_id)?;
-                w.write_all(revision_id)?;
-                write_varint(w, state.len() as u64)?;
-                w.write_all(state)
-            }
-        }
+        w.write_all(&[self.version])?;
+        w.write_all(&self.class_id)?;
+        w.write_all(&self.revision_id)?;
+        write_varint(w, self.state.len() as u64)?;
+        w.write_all(&self.state)
     }
 
     fn read(r: &mut impl Read) -> io::Result<Self> {
-        let mut buf = [0; 1];
-        r.read_exact(&mut buf)?;
-        match buf[0] {
-            OUTPUT_CLASS => {
-                let len = read_varint(r)?;
-                let mut code = vec![0; len as usize];
-                r.read_exact(&mut code)?;
-                Ok(Output::Class { code })
-            }
-            OUTPUT_OBJECT => {
-                let mut class_id = [0; ID_LEN];
-                r.read_exact(&mut class_id)?;
-                let mut revision_id = [0; ID_LEN];
-                r.read_exact(&mut revision_id)?;
-                let len = read_varint(r)?;
-                let mut state = vec![0; len as usize];
-                r.read_exact(&mut state)?;
-                Ok(Output::Object {
-                    class_id,
-                    revision_id,
-                    state,
-                })
-            }
-            _ => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "bad output type",
-            )),
+        let mut version = [0];
+        r.read_exact(&mut version)?;
+        let version = version[0];
+        if version != OUTPUT_VERSION {
+            Err(io::Error::new(io::ErrorKind::InvalidData, "bad version"))?;
         }
+
+        let mut class_id = [0; ID_LEN];
+        r.read_exact(&mut class_id)?;
+
+        let mut revision_id = [0; ID_LEN];
+        r.read_exact(&mut revision_id)?;
+
+        let len = read_varint(r)?;
+        let mut state = vec![0; len as usize];
+        r.read_exact(&mut state)?;
+
+        Ok(Output {
+            version,
+            class_id,
+            revision_id,
+            state,
+        })
     }
 }
 
@@ -274,6 +250,11 @@ mod tests {
         assert!(Tx::from_bytes(&[1, 0, 1]).is_err());
     }
 
+    // TODO: Check specific errors
+
+    // TODO: New output tests
+
+    /*
     #[test]
     fn output_id() {
         let output = Output::Class {
@@ -298,8 +279,6 @@ mod tests {
         let output_id: Id = hex::decode(output_id).unwrap().try_into().unwrap();
         assert_eq!(&output.id(), &output_id);
     }
-
-    // TODO: Check specific errors
 
     #[test]
     fn output_write() {
@@ -430,6 +409,7 @@ mod tests {
             Output::from_bytes(&[vec![1], vec![1; 32], vec![2; 32], vec![0, 1]].concat()).is_err()
         );
     }
+    */
 
     #[test]
     fn read_write_to_vec() {
