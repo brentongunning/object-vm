@@ -1,5 +1,6 @@
 use crate::{core::Id, errors::WasmError, misc::InputProvider};
 
+// TODO: static call?
 pub trait Wasm {
     fn reset(&mut self) -> Result<(), WasmError>;
     fn objects(&mut self, f: impl FnMut(&Id)) -> Result<(), WasmError>;
