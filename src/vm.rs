@@ -14,7 +14,7 @@ pub trait Vm {
 
     fn begin(&mut self, txid: &Id) -> Result<(), VmError>;
     fn end(&mut self) -> Result<(), VmError>;
-    fn outputs(&mut self, f: impl FnMut(&Id, &Output)) -> Result<(), VmError>;
+    fn outputs(&mut self, callback: impl FnMut(&Id, &Output)) -> Result<(), VmError>;
     fn stack(&mut self) -> &mut Self::Stack;
 
     fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
@@ -99,7 +99,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         let mut object_ids = vec![];
         self.wasm.objects(|id| object_ids.push(*id))?;
         for object_id in object_ids {
-            let class_id = *self.wasm.class(&object_id)?;
+            let class_id = self.wasm.class(&object_id, |id| *id)?;
             let mut revision_id = [0; 32];
             (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ object_id[i]);
             let state = self.wasm.state(&object_id)?.to_vec();
@@ -124,8 +124,10 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         Ok(())
     }
 
-    fn outputs(&mut self, mut f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
-        self.outputs.iter().for_each(|(id, output)| f(id, output));
+    fn outputs(&mut self, mut callback: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+        self.outputs
+            .iter()
+            .for_each(|(id, output)| callback(id, output));
         Ok(())
     }
 
@@ -178,7 +180,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn class(&mut self) -> Result<(), VmError> {
         let object_id: Id = self.stack.pop(decode_arr)??;
-        self.stack.push(self.wasm.class(&object_id)?)?;
+        self.wasm.class(&object_id, |id| self.stack.push(id))??;
         Ok(())
     }
 
@@ -213,10 +215,11 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
 
     fn fund(&mut self) -> Result<(), VmError> {
         let object_id = self.stack.pop(decode_arr)??;
-        let class_id = self.wasm.class(&object_id)?;
-        if *class_id != COIN_CLASS_ID {
-            return Err(VmError::InvalidCoin);
-        }
+        self.wasm
+            .class(&object_id, |class_id| match class_id == &COIN_CLASS_ID {
+                true => Ok(()),
+                false => Err(VmError::InvalidCoin),
+            })??;
         // TODO: destroy the coin and increase the credits
         unimplemented!();
     }
@@ -239,11 +242,11 @@ mod tests {
             Ok(())
         }
 
-        fn objects(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+        fn objects(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
             Ok(())
         }
 
-        fn inputs(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+        fn inputs(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
             Ok(())
         }
 

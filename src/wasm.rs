@@ -1,11 +1,20 @@
-use crate::{core::Id, errors::WasmError, misc::InputProvider};
-use std::{collections::HashSet, ptr::NonNull, sync::Arc};
+use crate::{
+    core::{Id, Output, ReadWrite},
+    errors::WasmError,
+    misc::InputProvider,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    ptr::NonNull,
+    sync::Arc,
+};
 use wasmer::{
     sys::{BaseTunables, EngineBuilder, Features},
     vm::{
         MemoryStyle, TableStyle, VMConfig, VMMemory, VMMemoryDefinition, VMTable, VMTableDefinition,
     },
-    CompilerConfig, MemoryError, MemoryType, Module, Singlepass, Store, TableType, Tunables, Type,
+    CompilerConfig, Instance, MemoryError, MemoryType, Module, Singlepass, Store, TableType,
+    Tunables, Type,
 };
 use wasmer_middlewares::Metering;
 
@@ -22,26 +31,35 @@ const MAX_MEMORY_PAGES: usize = 1;
 // TODO: static call?
 pub trait Wasm {
     fn reset(&mut self) -> Result<(), WasmError>;
-    fn objects(&mut self, f: impl FnMut(&Id)) -> Result<(), WasmError>;
-    fn inputs(&mut self, f: impl FnMut(&Id)) -> Result<(), WasmError>;
+    fn objects(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
+    fn inputs(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
 
     fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<(), WasmError>;
     fn create(&mut self, class_id: &Id, object_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
     fn state(&mut self, object_id: &Id) -> Result<&[u8], WasmError>;
-    fn class(&mut self, object_id: &Id) -> Result<&Id, WasmError>;
+    fn class<T>(&mut self, object_id: &Id, callback: impl FnMut(&Id) -> T) -> Result<T, WasmError>;
 }
 
 pub struct WasmImpl<I: InputProvider> {
-    _input_provider: I,
+    input_provider: I,
     _store: Store,
+    _modules: HashMap<Id, Module>,
+    objects: HashMap<Id, Object>,
+}
+
+struct Object {
+    class_id: Id,
+    _instance: Instance,
 }
 
 impl<I: InputProvider> WasmImpl<I> {
     pub fn new(input_provider: I) -> Self {
         Self {
-            _input_provider: input_provider,
+            input_provider,
             _store: create_store(),
+            _modules: HashMap::new(),
+            objects: HashMap::new(),
         }
     }
 }
@@ -52,12 +70,12 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         unimplemented!();
     }
 
-    fn objects(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+    fn objects(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
 
-    fn inputs(&mut self, _f: impl FnMut(&Id)) -> Result<(), WasmError> {
+    fn inputs(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
@@ -83,9 +101,23 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         unimplemented!();
     }
 
-    fn class(&mut self, _object_id: &Id) -> Result<&Id, WasmError> {
-        // TODO
-        unimplemented!();
+    fn class<T>(&mut self, object_id: &Id, callback: impl FnMut(&Id) -> T) -> Result<T, WasmError> {
+        if let Some(object) = self.objects.get(object_id) {
+            return Ok(callback(&object.class_id));
+        }
+
+        self.input_provider.input(object_id, |bytes| {
+            if let Some(bytes) = bytes {
+                let output = Output::from_bytes(&bytes)?;
+                if let Output::Object { class_id, .. } = output {
+                    return Ok(callback(&class_id));
+                } else {
+                    Err(WasmError::BadOutput)
+                }
+            } else {
+                Err(WasmError::NotFound)
+            }
+        })
     }
 }
 

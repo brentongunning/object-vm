@@ -1,8 +1,9 @@
 use crate::core::Id;
 use std::collections::HashMap;
 
+// TODO: Error?
 pub trait InputProvider {
-    fn input(&self, id: &Id) -> Option<&[u8]>;
+    fn input<T>(&self, id: &Id, callback: impl FnMut(Option<&[u8]>) -> T) -> T;
 }
 
 pub struct InputProviderImpl {
@@ -22,7 +23,7 @@ impl InputProviderImpl {
 }
 
 impl InputProvider for InputProviderImpl {
-    fn input(&self, id: &Id) -> Option<&[u8]> {
-        self.inputs.get(id).map(|v| v.as_slice())
+    fn input<T>(&self, id: &Id, mut callback: impl FnMut(Option<&[u8]>) -> T) -> T {
+        callback(self.inputs.get(id).map(|v| v.as_slice()))
     }
 }

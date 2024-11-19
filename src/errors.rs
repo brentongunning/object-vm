@@ -54,6 +54,7 @@ pub enum WasmError {
     BadExports,
     BadImports,
     Compile(CompileError),
+    NotFound,
 }
 
 impl Error for ExecuteError {}
@@ -175,6 +176,7 @@ impl Display for WasmError {
             WasmError::BadExports => write!(f, "Bad exports"),
             WasmError::BadImports => write!(f, "Bad imports"),
             WasmError::Compile(e) => write!(f, "Compile error: {:?}", e),
+            WasmError::NotFound => write!(f, "Output not found"),
         }
     }
 }

@@ -5,8 +5,8 @@ use std::mem::size_of;
 pub trait Stack {
     fn clear(&mut self);
     fn push(&mut self, buf: &[u8]) -> Result<(), StackError>;
-    fn pop<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
-    fn last<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
+    fn pop<T>(&mut self, callback: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
+    fn last<T>(&mut self, callback: impl FnOnce(&[u8]) -> T) -> Result<T, StackError>;
     fn dup(&mut self, index: usize) -> Result<(), StackError>;
     fn swap(&mut self, index: usize) -> Result<(), StackError>;
     fn depth(&self) -> usize;
@@ -58,19 +58,19 @@ impl Stack for StackImpl {
         Ok(())
     }
 
-    fn pop<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
+    fn pop<T>(&mut self, callback: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
         match self.stack.pop() {
             Some(v) => {
                 self.size -= v.len();
-                Ok(f(v.as_slice()))
+                Ok(callback(v.as_slice()))
             }
             None => Err(StackError::Underflow),
         }
     }
 
-    fn last<T>(&mut self, f: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
+    fn last<T>(&mut self, callback: impl FnOnce(&[u8]) -> T) -> Result<T, StackError> {
         match self.stack.last() {
-            Some(v) => Ok(f(v.as_slice())),
+            Some(v) => Ok(callback(v.as_slice())),
             None => Err(StackError::Underflow),
         }
     }

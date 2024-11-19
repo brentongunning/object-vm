@@ -358,7 +358,7 @@ mod tests {
             Ok(())
         }
 
-        fn outputs(&mut self, _f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+        fn outputs(&mut self, _callback: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
             Ok(())
         }
 
@@ -472,7 +472,7 @@ mod tests {
             self.check_expectation("end")
         }
 
-        fn outputs(&mut self, _f: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
+        fn outputs(&mut self, _callback: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
             self.check_expectation("outputs")?;
             Ok(())
         }
