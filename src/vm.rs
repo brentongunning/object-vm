@@ -237,7 +237,7 @@ mod tests {
     use super::*;
     use crate::{
         errors::{StackError, WasmError},
-        misc::{ObjectProvider, ObjectProviderImpl},
+        misc::ObjectProviderImpl,
         stack::StackImpl,
         wasm::WasmImpl,
     };
@@ -272,7 +272,7 @@ mod tests {
         fn state<T>(
             &mut self,
             _object_id: &Id,
-            callback: impl FnMut(&[u8]) -> T,
+            mut callback: impl FnMut(&[u8]) -> T,
         ) -> Result<T, WasmError> {
             Ok(callback(&[]))
         }
@@ -280,7 +280,7 @@ mod tests {
         fn class<T>(
             &mut self,
             _instance_id: &Id,
-            callback: FnMut(&Id) -> T,
+            mut callback: impl FnMut(&Id) -> T,
         ) -> Result<T, WasmError> {
             Ok(callback(&NULL_ID))
         }

@@ -52,6 +52,7 @@ pub struct WasmImpl<P: ObjectProvider> {
 }
 
 struct Class {
+    code: Vec<u8>,
     _module: wasmer::Module,
 }
 
@@ -105,10 +106,15 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
 
     fn state<T>(
         &mut self,
-        _object_id: &Id,
-        _callback: impl FnMut(&[u8]) -> T,
+        object_id: &Id,
+        mut callback: impl FnMut(&[u8]) -> T,
     ) -> Result<T, WasmError> {
+        if let Some(class) = self.classes.get(object_id) {
+            return Ok(callback(&class.code));
+        }
+
         // TODO
+
         unimplemented!();
     }
 
