@@ -1,7 +1,7 @@
 use crate::{
-    core::{Id, Output, ReadWrite},
+    core::{Id, Object, ReadWrite},
     errors::WasmError,
-    misc::InputProvider,
+    misc::ObjectProvider,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -13,8 +13,7 @@ use wasmer::{
     vm::{
         MemoryStyle, TableStyle, VMConfig, VMMemory, VMMemoryDefinition, VMTable, VMTableDefinition,
     },
-    CompilerConfig, Instance, MemoryError, MemoryType, Module, Singlepass, Store, TableType,
-    Tunables, Type,
+    CompilerConfig, MemoryError, MemoryType, Module, Singlepass, Store, TableType, Tunables, Type,
 };
 use wasmer_middlewares::Metering;
 
@@ -31,51 +30,55 @@ const MAX_MEMORY_PAGES: usize = 1;
 // TODO: static call?
 pub trait Wasm {
     fn reset(&mut self) -> Result<(), WasmError>;
-    fn objects(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
-    fn inputs(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
+    fn object_ids(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
+    fn revision_ids(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
 
     fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<(), WasmError>;
-    fn create(&mut self, class_id: &Id, object_id: &Id) -> Result<(), WasmError>;
+    fn create(&mut self, class_id: &Id, instance_id: &Id) -> Result<(), WasmError>;
     fn call(&mut self, object_id: &Id) -> Result<(), WasmError>;
     fn state(&mut self, object_id: &Id) -> Result<&[u8], WasmError>;
     fn class<T>(&mut self, object_id: &Id, callback: impl FnMut(&Id) -> T) -> Result<T, WasmError>;
 }
 
-pub struct WasmImpl<I: InputProvider> {
-    input_provider: I,
+pub struct WasmImpl<P: ObjectProvider> {
+    object_provider: P,
     _store: Store,
-    _modules: HashMap<Id, Module>,
-    objects: HashMap<Id, Object>,
+    classes: HashMap<Id, Class>,
+    instances: HashMap<Id, Instance>,
 }
 
-struct Object {
+struct Class {
+    _module: wasmer::Module,
+}
+
+struct Instance {
     class_id: Id,
-    _instance: Instance,
+    _instance: wasmer::Instance,
 }
 
-impl<I: InputProvider> WasmImpl<I> {
-    pub fn new(input_provider: I) -> Self {
+impl<P: ObjectProvider> WasmImpl<P> {
+    pub fn new(object_provider: P) -> Self {
         Self {
-            input_provider,
+            object_provider,
             _store: create_store(),
-            _modules: HashMap::new(),
-            objects: HashMap::new(),
+            classes: HashMap::new(),
+            instances: HashMap::new(),
         }
     }
 }
 
-impl<I: InputProvider> Wasm for WasmImpl<I> {
+impl<P: ObjectProvider> Wasm for WasmImpl<P> {
     fn reset(&mut self) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
 
-    fn objects(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+    fn object_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
 
-    fn inputs(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+    fn revision_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
@@ -86,7 +89,7 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         unimplemented!();
     }
 
-    fn create(&mut self, _class_id: &Id, _object_id: &Id) -> Result<(), WasmError> {
+    fn create(&mut self, _class_id: &Id, _instance_id: &Id) -> Result<(), WasmError> {
         // TODO
         unimplemented!();
     }
@@ -106,16 +109,16 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         object_id: &Id,
         mut callback: impl FnMut(&Id) -> T,
     ) -> Result<T, WasmError> {
-        if let Some(object) = self.objects.get(object_id) {
+        if let Some(object) = self.instances.get(object_id) {
             return Ok(callback(&object.class_id));
         }
 
-        self.input_provider.input(object_id, |bytes| {
+        self.object_provider.object(object_id, |bytes| {
             if let Some(bytes) = bytes {
-                let output = Output::from_bytes(&bytes)?;
-                Ok(callback(&output.class_id))
+                let object = Object::from_bytes(&bytes)?;
+                Ok(callback(&object.class_id))
             } else {
-                Err(WasmError::NotFound)
+                Err(WasmError::ObjectNotFound)
             }
         })
     }

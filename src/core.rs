@@ -6,7 +6,7 @@ pub const PUBKEY_LEN: usize = 32;
 pub const SIG_LEN: usize = 64;
 
 pub const TX_VERSION: u8 = 1;
-pub const OUTPUT_VERSION: u8 = 1;
+pub const OBJECT_VERSION: u8 = 1;
 
 pub const NULL_ID: Id = [0; ID_LEN];
 
@@ -22,7 +22,7 @@ pub struct Tx {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Output {
+pub struct Object {
     pub version: u8,
     pub class_id: Id,
     pub revision_id: Id,
@@ -67,13 +67,13 @@ impl ReadWrite for Tx {
     }
 }
 
-impl Output {
-    pub fn id(&self) -> Id {
+impl Object {
+    pub fn hash(&self) -> Id {
         blake3::hash(&self.to_vec()).into()
     }
 }
 
-impl ReadWrite for Output {
+impl ReadWrite for Object {
     fn write(&self, w: &mut impl Write) -> io::Result<()> {
         w.write_all(&[self.version])?;
         w.write_all(&self.class_id)?;
@@ -86,7 +86,7 @@ impl ReadWrite for Output {
         let mut version = [0];
         r.read_exact(&mut version)?;
         let version = version[0];
-        if version != OUTPUT_VERSION {
+        if version != OBJECT_VERSION {
             Err(io::Error::new(io::ErrorKind::InvalidData, "bad version"))?;
         }
 
@@ -100,7 +100,7 @@ impl ReadWrite for Output {
         let mut state = vec![0; len as usize];
         r.read_exact(&mut state)?;
 
-        Ok(Output {
+        Ok(Object {
             version,
             class_id,
             revision_id,
@@ -252,7 +252,7 @@ mod tests {
 
     // TODO: Check specific errors
 
-    // TODO: New output tests
+    // TODO: New object tests
 
     /*
     #[test]

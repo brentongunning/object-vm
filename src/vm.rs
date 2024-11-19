@@ -1,6 +1,6 @@
 use crate::{
     coin::COIN_CLASS_ID,
-    core::{Id, Output, PubKey, NULL_ID, OUTPUT_VERSION},
+    core::{Id, Object, PubKey, NULL_ID, OBJECT_VERSION},
     errors::VmError,
     stack::{decode_arr, decode_num, Stack},
     wasm::Wasm,
@@ -12,11 +12,11 @@ pub trait Vm {
 
     fn begin(&mut self, txid: &Id) -> Result<(), VmError>;
     fn end(&mut self) -> Result<(), VmError>;
-    fn outputs(&mut self, callback: impl FnMut(&Id, &Output)) -> Result<(), VmError>;
+    fn objects(&mut self, callback: impl FnMut(&Id, &Object)) -> Result<(), VmError>;
     fn stack(&mut self) -> &mut Self::Stack;
 
     fn deploy(&mut self) -> Result<(), VmError>; // code -- class_id
-    fn create(&mut self) -> Result<(), VmError>; // args.. class_id -- object_id
+    fn create(&mut self) -> Result<(), VmError>; // args.. class_id -- instance_id
     fn call(&mut self) -> Result<(), VmError>; // args.. object_id -- result..
     fn state(&mut self) -> Result<(), VmError>; // object_id -- state
     fn class(&mut self) -> Result<(), VmError>; // object_id -- class_id
@@ -26,7 +26,7 @@ pub trait Vm {
 
     fn auth(&mut self) -> Result<(), VmError>; // pubkey --
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
-    fn fund(&mut self) -> Result<(), VmError>; // object_id --
+    fn fund(&mut self) -> Result<(), VmError>; // instance_id --
 }
 
 pub struct VmImpl<S: Stack, W: Wasm> {
@@ -36,7 +36,7 @@ pub struct VmImpl<S: Stack, W: Wasm> {
     caller_stack: Vec<Id>,
     pending_sigs: HashSet<PubKey>,
     pending_uniquifiers: HashSet<Id>,
-    outputs: HashMap<Id, Output>,
+    objects: HashMap<Id, Object>,
     num_new_objects: u32,
     limits: Limits, // TODO: Respect all fields
 }
@@ -59,7 +59,7 @@ impl<S: Stack, W: Wasm> VmImpl<S, W> {
             caller_stack: Vec::new(),
             pending_sigs: HashSet::new(),
             pending_uniquifiers: HashSet::new(),
-            outputs: HashMap::new(),
+            objects: HashMap::new(),
             num_new_objects: 0,
             limits,
         }
@@ -84,7 +84,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         self.caller_stack.clear();
         self.pending_sigs.clear();
         self.pending_uniquifiers.clear();
-        self.outputs.clear();
+        self.objects.clear();
         self.num_new_objects = 0;
         Ok(())
     }
@@ -95,16 +95,16 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         }
 
         let mut object_ids = vec![];
-        self.wasm.objects(|id| object_ids.push(*id))?;
+        self.wasm.object_ids(|id| object_ids.push(*id))?;
         for object_id in object_ids {
             let class_id = self.wasm.class(&object_id, |id| *id)?;
             let mut revision_id = [0; 32];
             (0..32).for_each(|i| revision_id[i] = self.txid[i] ^ object_id[i]);
             let state = self.wasm.state(&object_id)?.to_vec();
-            self.outputs.insert(
+            self.objects.insert(
                 object_id,
-                Output {
-                    version: OUTPUT_VERSION,
+                Object {
+                    version: OBJECT_VERSION,
                     class_id,
                     revision_id,
                     state,
@@ -113,7 +113,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         }
 
         let mut revision_ids = HashSet::new();
-        self.wasm.inputs(|id| {
+        self.wasm.revision_ids(|id| {
             revision_ids.insert(*id);
         })?;
         if !self.pending_uniquifiers.is_subset(&revision_ids) {
@@ -123,10 +123,10 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         Ok(())
     }
 
-    fn outputs(&mut self, mut callback: impl FnMut(&Id, &Output)) -> Result<(), VmError> {
-        self.outputs
+    fn objects(&mut self, mut callback: impl FnMut(&Id, &Object)) -> Result<(), VmError> {
+        self.objects
             .iter()
-            .for_each(|(id, output)| callback(id, output));
+            .for_each(|(id, object)| callback(id, object));
         Ok(())
     }
 
@@ -139,26 +139,26 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         if code.len() > self.limits.max_bytecode_len {
             return Err(VmError::ExceededBytecodeLength);
         }
-        // TODO: Should class_id be same as output_id? Or come from deploys?
-        let output = Output {
-            version: OUTPUT_VERSION,
+        let class_id = self.new_object_id();
+        let object = Object {
+            version: OBJECT_VERSION,
             class_id: NULL_ID,
             revision_id: NULL_ID,
             state: code,
         };
-        let class_id = output.id();
-        self.wasm.deploy(&output.state, &class_id)?;
+        self.wasm.deploy(&object.state, &class_id)?;
         self.stack.push(&class_id)?;
-        self.outputs.insert(class_id, output);
+        // TODO: Let wasm do this?
+        self.objects.insert(class_id, object);
         Ok(())
     }
 
     fn create(&mut self) -> Result<(), VmError> {
         let class_id: Id = self.stack.pop(decode_arr)??;
-        let object_id = self.new_object_id();
-        self.caller_stack.push(object_id);
-        self.wasm.create(&class_id, &object_id)?;
-        self.stack.push(&object_id)?;
+        let instance_id = self.new_object_id();
+        self.caller_stack.push(instance_id);
+        self.wasm.create(&class_id, &instance_id)?;
+        self.stack.push(&instance_id)?;
         self.caller_stack.pop().unwrap();
         Ok(())
     }
@@ -218,9 +218,9 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     }
 
     fn fund(&mut self) -> Result<(), VmError> {
-        let object_id = self.stack.pop(decode_arr)??;
+        let instance_id = self.stack.pop(decode_arr)??;
         self.wasm
-            .class(&object_id, |class_id| match class_id == &COIN_CLASS_ID {
+            .class(&instance_id, |class_id| match class_id == &COIN_CLASS_ID {
                 true => Ok(()),
                 false => Err(VmError::InvalidCoin),
             })??;
@@ -234,7 +234,7 @@ mod tests {
     use super::*;
     use crate::{
         errors::{StackError, WasmError},
-        misc::InputProviderImpl,
+        misc::{ObjectProvider, ObjectProviderImpl},
         stack::StackImpl,
         wasm::WasmImpl,
     };
@@ -246,11 +246,11 @@ mod tests {
             Ok(())
         }
 
-        fn objects(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+        fn object_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
             Ok(())
         }
 
-        fn inputs(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+        fn revision_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
             Ok(())
         }
 
@@ -258,7 +258,7 @@ mod tests {
             Ok(())
         }
 
-        fn create(&mut self, _class_id: &Id, _object_id: &Id) -> Result<(), WasmError> {
+        fn create(&mut self, _class_id: &Id, _instance_id: &Id) -> Result<(), WasmError> {
             Ok(())
         }
 
@@ -270,7 +270,7 @@ mod tests {
             Ok(&[])
         }
 
-        fn class(&mut self, _object_id: &Id) -> Result<&Id, WasmError> {
+        fn class(&mut self, _instance_id: &Id) -> Result<&Id, WasmError> {
             Ok(&[0; 32])
         }
     }
@@ -302,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    fn outputs() {
+    fn objects() {
         // TODO
         unimplemented!();
     }
@@ -311,8 +311,8 @@ mod tests {
     fn stack() {
         let mut stack = StackImpl::new(1024, 256, 32);
         stack.push(&[1, 2, 3]).ok();
-        let inputs = InputProviderImpl::new();
-        let wasm = WasmImpl::new(inputs);
+        let provider = ObjectProviderImpl::new();
+        let wasm = WasmImpl::new(provider);
         let limits = Limits {
             max_classes: 1024,
             max_objects: 1024,
