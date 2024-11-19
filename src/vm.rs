@@ -136,7 +136,7 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
     fn deploy(&mut self) -> Result<(), VmError> {
         let code = self.stack.pop(|x| x.to_vec())?;
         if code.len() > self.limits.max_bytecode_len {
-            return Err(VmError::ExceededBytecodeLen);
+            return Err(VmError::ExceededBytecodeLength);
         }
         // TODO: This should include version / output
         let class_id = blake3::hash(&code).into();

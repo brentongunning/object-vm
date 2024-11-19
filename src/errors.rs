@@ -39,10 +39,7 @@ pub enum VerifyError {
 
 #[derive(Debug)]
 pub enum VmError {
-    BadExports,
-    BadImports,
-    Compile(CompileError),
-    ExceededBytecodeLen,
+    ExceededBytecodeLength,
     InvalidCoin,
     MissingUniquifier,
     // TODO: Remove this and replace with real errors
@@ -53,7 +50,11 @@ pub enum VmError {
 }
 
 #[derive(Debug)]
-pub enum WasmError {}
+pub enum WasmError {
+    BadExports,
+    BadImports,
+    Compile(CompileError),
+}
 
 impl Error for ExecuteError {}
 impl Error for ScriptError {}
@@ -92,12 +93,6 @@ impl From<ScriptError> for VerifyError {
     }
 }
 
-impl From<CompileError> for VmError {
-    fn from(e: CompileError) -> Self {
-        VmError::Compile(e)
-    }
-}
-
 impl From<StackError> for VmError {
     fn from(e: StackError) -> Self {
         VmError::Stack(e)
@@ -107,6 +102,12 @@ impl From<StackError> for VmError {
 impl From<WasmError> for VmError {
     fn from(e: WasmError) -> Self {
         VmError::Wasm(e)
+    }
+}
+
+impl From<CompileError> for WasmError {
+    fn from(e: CompileError) -> Self {
+        WasmError::Compile(e)
     }
 }
 
@@ -157,10 +158,7 @@ impl Display for VerifyError {
 impl Display for VmError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            VmError::BadExports => write!(f, "Bad exports"),
-            VmError::BadImports => write!(f, "Bad imports"),
-            VmError::Compile(e) => write!(f, "Compile error: {:?}", e),
-            VmError::ExceededBytecodeLen => write!(f, "Exceeded bytecode length"),
+            VmError::ExceededBytecodeLength => write!(f, "Exceeded bytecode length"),
             VmError::InvalidCoin => write!(f, "Invalid coin"),
             VmError::MissingUniquifier => write!(f, "Missing uniquifier"),
             VmError::Placeholder(s) => write!(f, "Placeholder: {}", s),
@@ -173,6 +171,10 @@ impl Display for VmError {
 
 impl Display for WasmError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Wasm error")
+        match self {
+            WasmError::BadExports => write!(f, "Bad exports"),
+            WasmError::BadImports => write!(f, "Bad imports"),
+            WasmError::Compile(e) => write!(f, "Compile error: {:?}", e),
+        }
     }
 }

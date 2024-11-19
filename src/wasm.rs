@@ -1,8 +1,4 @@
-use crate::{
-    core::Id,
-    errors::{VmError, WasmError},
-    misc::InputProvider,
-};
+use crate::{core::Id, errors::WasmError, misc::InputProvider};
 use std::{collections::HashSet, ptr::NonNull, sync::Arc};
 use wasmer::{
     sys::{BaseTunables, EngineBuilder, Features},
@@ -19,6 +15,9 @@ use wasmer_middlewares::Metering;
 // avoid infinite recursion, and process historical blocks.
 // [1] https://github.com/wasmerio/wasmer/blob/d3f02cb3daa3c214a230c672cb7309fde0646db9/lib/vm/src/trap/traphandlers.rs#L689
 const WASM_STACK_SIZE: usize = 1024 * 1024;
+
+// TODO: Move to limits
+const MAX_MEMORY_PAGES: usize = 1;
 
 // TODO: static call?
 pub trait Wasm {
@@ -63,7 +62,8 @@ impl<I: InputProvider> Wasm for WasmImpl<I> {
         unimplemented!();
     }
 
-    fn deploy(&mut self, _code: &[u8], _class_id: &Id) -> Result<(), WasmError> {
+    fn deploy(&mut self, code: &[u8], _class_id: &Id) -> Result<(), WasmError> {
+        check_wasm(code, MAX_MEMORY_PAGES)?;
         // TODO
         unimplemented!();
     }
@@ -176,7 +176,7 @@ impl<B: Tunables> Tunables for CustomTunables<B> {
     }
 }
 
-pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), VmError> {
+pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), WasmError> {
     let singlepass = Singlepass::new();
     let engine = EngineBuilder::new(singlepass)
         .set_features(Some(features()))
@@ -189,7 +189,7 @@ pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), VmErro
         .find(|e| e.name() == "wasmer_metering_remaining_points")
         .is_some()
     {
-        return Err(VmError::BadExports);
+        return Err(WasmError::BadExports);
     }
 
     if module_without_metering
@@ -197,7 +197,7 @@ pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), VmErro
         .find(|e| e.name() == "wasmer_metering_points_exhausted")
         .is_some()
     {
-        return Err(VmError::BadExports);
+        return Err(WasmError::BadExports);
     }
 
     check_exports(&module_without_metering)?;
@@ -206,31 +206,31 @@ pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), VmErro
     Ok(())
 }
 
-fn check_exports(module: &Module) -> Result<(), VmError> {
+fn check_exports(module: &Module) -> Result<(), WasmError> {
     let mut allowed_exports: HashSet<_> = ["load", "save", "create", "call"].into_iter().collect();
 
     let mut required_exports: HashSet<_> = ["load", "save", "create"].into_iter().collect();
 
     for export in module.exports() {
         if !allowed_exports.remove(export.name()) {
-            return Err(VmError::BadImports);
+            return Err(WasmError::BadImports);
         }
         required_exports.remove(export.name());
 
-        let func_type = export.ty().func().ok_or(VmError::BadExports)?;
+        let func_type = export.ty().func().ok_or(WasmError::BadExports)?;
         if !func_type.params().is_empty() || !func_type.results().is_empty() {
-            return Err(VmError::BadExports);
+            return Err(WasmError::BadExports);
         }
     }
 
     if !required_exports.is_empty() {
-        return Err(VmError::BadExports);
+        return Err(WasmError::BadExports);
     }
 
     Ok(())
 }
 
-fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), VmError> {
+fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), WasmError> {
     let mut allowed_imports: HashSet<_> = [
         "push",
         "pop",
@@ -252,16 +252,16 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), VmError
 
     for import in module.imports() {
         if !allowed_imports.remove(import.name()) {
-            return Err(VmError::BadImports);
+            return Err(WasmError::BadImports);
         }
         required_imports.remove(import.name());
 
         if import.name() == "memory" {
             if import.module() != "env" {
-                return Err(VmError::BadImports);
+                return Err(WasmError::BadImports);
             }
 
-            let memory_type = import.ty().memory().ok_or(VmError::BadImports)?;
+            let memory_type = import.ty().memory().ok_or(WasmError::BadImports)?;
             if memory_type.minimum.0 < 1
                 || memory_type.minimum.0 > max_memory_pages as u32
                 || memory_type
@@ -269,21 +269,21 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), VmError
                     .is_some_and(|x| x.0 > max_memory_pages as u32)
                 || memory_type.shared
             {
-                return Err(VmError::BadImports);
+                return Err(WasmError::BadImports);
             }
         } else {
             if import.module() != "vm" {
-                return Err(VmError::BadImports);
+                return Err(WasmError::BadImports);
             }
 
-            let func_type = import.ty().func().ok_or(VmError::BadImports)?;
+            let func_type = import.ty().func().ok_or(WasmError::BadImports)?;
             if import.name() == "push" {
                 if func_type.params().len() != 2
                     || func_type.params()[0] != Type::I32
                     || func_type.params()[1] != Type::I32
                     || !func_type.results().is_empty()
                 {
-                    return Err(VmError::BadImports);
+                    return Err(WasmError::BadImports);
                 }
             } else if import.name() == "pop" {
                 if func_type.params().len() != 2
@@ -292,7 +292,7 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), VmError
                     || func_type.results().len() != 1
                     || func_type.results()[0] != Type::I32
                 {
-                    return Err(VmError::BadImports);
+                    return Err(WasmError::BadImports);
                 }
             } else if import.name() == "abort" {
                 if func_type.params().len() != 2
@@ -300,16 +300,16 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), VmError
                     || func_type.params()[1] != Type::I32
                     || !func_type.results().is_empty()
                 {
-                    return Err(VmError::BadImports);
+                    return Err(WasmError::BadImports);
                 }
             } else if !func_type.params().is_empty() || !func_type.results().is_empty() {
-                return Err(VmError::BadImports);
+                return Err(WasmError::BadImports);
             }
         }
     }
 
     if !required_imports.is_empty() {
-        return Err(VmError::BadImports);
+        return Err(WasmError::BadImports);
     }
 
     Ok(())
