@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 
 pub const ID_LEN: usize = 32;
 pub const HASH_LEN: usize = 32;
@@ -73,7 +73,15 @@ impl Object {
     }
 
     pub fn parse_class_id(buf: &[u8]) -> &Id {
-        (&buf[1..ID_LEN + 1]).try_into().expect("bad output")
+        (&buf[1..1 + ID_LEN]).try_into().expect("bad output")
+    }
+
+    pub fn parse_state(buf: &[u8]) -> &[u8] {
+        let offset = 1 + ID_LEN + ID_LEN;
+        let mut cursor = Cursor::new(&buf[offset..]);
+        let len = read_varint(&mut cursor).expect("bad output") as usize;
+        let start = offset + cursor.position() as usize;
+        buf.get(start..start + len).expect("bad output")
     }
 }
 

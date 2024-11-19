@@ -53,6 +53,7 @@ pub struct WasmImpl<P: ObjectProvider> {
 
 struct Class {
     code: Vec<u8>,
+    _deployed: bool,
     _module: wasmer::Module,
 }
 
@@ -113,9 +114,15 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
             return Ok(callback(&class.code));
         }
 
-        // TODO
+        // TODO: instances
 
-        unimplemented!();
+        self.object_provider.object(object_id, |bytes| {
+            if let Some(bytes) = bytes {
+                Ok(callback(Object::parse_state(bytes)))
+            } else {
+                Err(WasmError::ObjectNotFound(*object_id))
+            }
+        })
     }
 
     fn class<T>(
@@ -133,7 +140,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
 
         self.object_provider.object(object_id, |bytes| {
             if let Some(bytes) = bytes {
-                Ok(callback(&Object::parse_class_id(bytes)))
+                Ok(callback(Object::parse_class_id(bytes)))
             } else {
                 Err(WasmError::ObjectNotFound(*object_id))
             }
