@@ -395,6 +395,15 @@ mod tests {
             Ok(())
         }
 
+        fn caller(&mut self) -> Result<(), VmError> {
+            self.stack().push(&Id::default())?;
+            Ok(())
+        }
+
+        fn expect_sig(&mut self) -> Result<(), VmError> {
+            Ok(())
+        }
+
         fn auth(&mut self) -> Result<(), VmError> {
             let _pubkey: PubKey = self.stack().pop(decode_arr)??;
             Ok(())
@@ -407,11 +416,6 @@ mod tests {
 
         fn fund(&mut self) -> Result<(), VmError> {
             let _object_id: Id = self.stack().pop(decode_arr)??;
-            Ok(())
-        }
-
-        fn caller(&mut self) -> Result<(), VmError> {
-            self.stack().push(&Id::default())?;
             Ok(())
         }
     }
@@ -497,6 +501,14 @@ mod tests {
             self.check_expectation("class")
         }
 
+        fn caller(&mut self) -> Result<(), VmError> {
+            self.check_expectation("caller")
+        }
+
+        fn expect_sig(&mut self) -> Result<(), VmError> {
+            self.check_expectation("expect_sig")
+        }
+
         fn auth(&mut self) -> Result<(), VmError> {
             self.check_expectation("auth")
         }
@@ -507,10 +519,6 @@ mod tests {
 
         fn fund(&mut self) -> Result<(), VmError> {
             self.check_expectation("fund")
-        }
-
-        fn caller(&mut self) -> Result<(), VmError> {
-            self.check_expectation("caller")
         }
     }
 

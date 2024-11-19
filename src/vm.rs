@@ -23,11 +23,12 @@ pub trait Vm {
     fn state(&mut self) -> Result<(), VmError>; // object_id -- state
     fn class(&mut self) -> Result<(), VmError>; // object_id -- class_id
 
+    fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
+    fn expect_sig(&mut self) -> Result<(), VmError>; // pubkey --
+
     fn auth(&mut self) -> Result<(), VmError>; // pubkey --
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
     fn fund(&mut self) -> Result<(), VmError>; // object_id --
-
-    fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
 }
 
 pub struct VmImpl<S: Stack, W: Wasm> {
@@ -181,6 +182,23 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         Ok(())
     }
 
+    fn caller(&mut self) -> Result<(), VmError> {
+        let index: u64 = self.stack.pop(decode_num)??;
+        if index >= self.caller_stack.len() as u64 {
+            self.stack.push(&NULL_CALLER)?;
+        } else {
+            let i = self.caller_stack.len() - 1 - index as usize;
+            self.stack.push(&self.caller_stack[i])?;
+        }
+        Ok(())
+    }
+
+    fn expect_sig(&mut self) -> Result<(), VmError> {
+        let pubkey: PubKey = self.stack.pop(decode_arr)??;
+        self.pending_sigs.insert(pubkey);
+        Ok(())
+    }
+
     fn auth(&mut self) -> Result<(), VmError> {
         let pubkey: PubKey = self.stack.pop(decode_arr)??;
         self.pending_sigs.remove(&pubkey);
@@ -201,17 +219,6 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         }
         // TODO: destroy the coin and increase the credits
         unimplemented!();
-    }
-
-    fn caller(&mut self) -> Result<(), VmError> {
-        let index: u64 = self.stack.pop(decode_num)??;
-        if index >= self.caller_stack.len() as u64 {
-            self.stack.push(&NULL_CALLER)?;
-        } else {
-            let i = self.caller_stack.len() - 1 - index as usize;
-            self.stack.push(&self.caller_stack[i])?;
-        }
-        Ok(())
     }
 }
 

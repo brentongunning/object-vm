@@ -3,6 +3,8 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
+use wasmer::CompileError;
+
 #[derive(Debug)]
 pub enum ExecuteError {
     DivideByZero,
@@ -37,6 +39,9 @@ pub enum VerifyError {
 
 #[derive(Debug)]
 pub enum VmError {
+    BadExports,
+    BadImports,
+    Compile(CompileError),
     ExceededBytecodeLen,
     InvalidCoin,
     MissingUniquifier,
@@ -84,6 +89,12 @@ impl From<VmError> for ExecuteError {
 impl From<ScriptError> for VerifyError {
     fn from(e: ScriptError) -> Self {
         VerifyError::Script(e)
+    }
+}
+
+impl From<CompileError> for VmError {
+    fn from(e: CompileError) -> Self {
+        VmError::Compile(e)
     }
 }
 
@@ -146,6 +157,9 @@ impl Display for VerifyError {
 impl Display for VmError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
+            VmError::BadExports => write!(f, "Bad exports"),
+            VmError::BadImports => write!(f, "Bad imports"),
+            VmError::Compile(e) => write!(f, "Compile error: {:?}", e),
             VmError::ExceededBytecodeLen => write!(f, "Exceeded bytecode length"),
             VmError::InvalidCoin => write!(f, "Invalid coin"),
             VmError::MissingUniquifier => write!(f, "Missing uniquifier"),
