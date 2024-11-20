@@ -145,7 +145,13 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
     }
 
     fn call(&mut self, _object_id: &Id) -> Result<(), WasmError> {
-        // TODO
+        if !self.instances.contains_key(_object_id) {
+            // Load the object instance
+        }
+
+        // TODO: Call call
+        // TODO: Static call?
+
         unimplemented!();
     }
 
