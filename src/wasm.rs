@@ -158,7 +158,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
 
     fn call(&mut self, _object_id: &Id) -> Result<(), WasmError> {
         if !self.instances.contains_key(_object_id) {
-            // Load the object instance
+            // TODO: Load the object instance
         }
 
         // TODO: Call call
@@ -299,10 +299,13 @@ impl<B: Tunables> Tunables for CustomTunables<B> {
 
 pub fn check_wasm(bytecode: &[u8], max_memory_pages: usize) -> Result<(), WasmError> {
     let singlepass = Singlepass::new();
+
     let engine = EngineBuilder::new(singlepass)
         .set_features(Some(features()))
         .engine();
+
     let store = Store::new(&engine);
+
     let module_without_metering = Module::new(&store, bytecode)?;
 
     if module_without_metering
