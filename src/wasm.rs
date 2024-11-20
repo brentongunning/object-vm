@@ -46,15 +46,15 @@ pub trait Wasm {
 
 pub struct WasmImpl<P: ObjectProvider> {
     object_provider: P,
-    _store: Store,
+    store: Store,
     classes: HashMap<Id, Class>,
     instances: HashMap<Id, Instance>,
 }
 
 struct Class {
     code: Vec<u8>,
-    _deployed: bool,
-    _module: wasmer::Module,
+    deployed: bool,
+    module: wasmer::Module,
 }
 
 struct Instance {
@@ -67,7 +67,7 @@ impl<P: ObjectProvider> WasmImpl<P> {
     pub fn new(object_provider: P) -> Self {
         Self {
             object_provider,
-            _store: create_store(),
+            store: create_store(),
             classes: HashMap::new(),
             instances: HashMap::new(),
         }
@@ -90,10 +90,20 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         unimplemented!();
     }
 
-    fn deploy(&mut self, code: &[u8], _class_id: &Id) -> Result<(), WasmError> {
+    fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<(), WasmError> {
         check_wasm(code, MAX_MEMORY_PAGES)?;
-        // TODO
-        unimplemented!();
+
+        let module = Module::new(&self.store, code)?;
+
+        let class = Class {
+            code: code.to_vec(),
+            deployed: true,
+            module,
+        };
+
+        self.classes.insert(*class_id, class);
+
+        Ok(())
     }
 
     fn create(&mut self, _class_id: &Id, _instance_id: &Id) -> Result<(), WasmError> {
