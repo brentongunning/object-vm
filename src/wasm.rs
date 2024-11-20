@@ -81,9 +81,15 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         Ok(())
     }
 
-    fn object_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
-        // TODO
-        unimplemented!();
+    fn object_ids(&mut self, mut callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+        self.classes
+            .iter()
+            .filter(|(_, class)| class.deployed)
+            .for_each(|(id, _)| callback(id));
+
+        self.instances.keys().for_each(callback);
+
+        Ok(())
     }
 
     fn revision_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
