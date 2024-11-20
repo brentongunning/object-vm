@@ -59,6 +59,7 @@ struct Class {
 
 struct Instance {
     class_id: Id,
+    _revision_id: Option<Id>,
     _instance: wasmer::Instance,
 }
 
