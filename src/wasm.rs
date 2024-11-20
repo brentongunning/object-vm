@@ -55,6 +55,7 @@ struct Class {
     code: Vec<u8>,
     deployed: bool,
     module: wasmer::Module,
+    static_instance: Option<wasmer::Instance>,
 }
 
 struct Instance {
@@ -111,6 +112,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
             code: code.to_vec(),
             deployed: true,
             module,
+            static_instance: None,
         };
 
         self.classes.insert(*class_id, class);
@@ -128,6 +130,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
                         code: code.to_vec(),
                         deployed: false,
                         module: Module::new(&self.store, code)?,
+                        static_instance: None,
                     };
 
                     self.classes.insert(*class_id, class);
