@@ -78,6 +78,7 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
     fn reset(&mut self) -> Result<(), WasmError> {
         self.classes.clear();
         self.instances.clear();
+
         Ok(())
     }
 
@@ -92,9 +93,13 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         Ok(())
     }
 
-    fn revision_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
-        // TODO
-        unimplemented!();
+    fn revision_ids(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError> {
+        self.instances
+            .iter()
+            .filter_map(|(_, instance)| instance.revision_id.as_ref())
+            .for_each(callback);
+
+        Ok(())
     }
 
     fn deploy(&mut self, code: &[u8], class_id: &Id) -> Result<(), WasmError> {
