@@ -59,8 +59,8 @@ struct Class {
 
 struct Instance {
     class_id: Id,
-    _revision_id: Option<Id>,
-    _instance: wasmer::Instance,
+    revision_id: Option<Id>,
+    instance: wasmer::Instance,
 }
 
 impl<P: ObjectProvider> WasmImpl<P> {
@@ -106,9 +106,42 @@ impl<P: ObjectProvider> Wasm for WasmImpl<P> {
         Ok(())
     }
 
-    fn create(&mut self, _class_id: &Id, _instance_id: &Id) -> Result<(), WasmError> {
-        // TODO
-        unimplemented!();
+    fn create(&mut self, class_id: &Id, instance_id: &Id) -> Result<(), WasmError> {
+        if !self.classes.contains_key(class_id) {
+            self.object_provider.object(class_id, |bytes| {
+                if let Some(bytes) = bytes {
+                    let code = Object::parse_state(bytes);
+
+                    let class = Class {
+                        code: code.to_vec(),
+                        deployed: false,
+                        module: Module::new(&self.store, code)?,
+                    };
+
+                    self.classes.insert(*class_id, class);
+
+                    Ok(())
+                } else {
+                    Err(WasmError::ObjectNotFound(*class_id))
+                }
+            })?;
+        }
+
+        let class = self.classes.get(class_id).unwrap();
+
+        let (instance, _memory) = create_instance(&mut self.store, &class.module)?;
+
+        let instance = Instance {
+            class_id: *class_id,
+            revision_id: None,
+            instance,
+        };
+
+        self.instances.insert(*instance_id, instance);
+
+        // TODO: Call create
+
+        return Ok(());
     }
 
     fn call(&mut self, _object_id: &Id) -> Result<(), WasmError> {
@@ -383,4 +416,12 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), WasmErr
     }
 
     Ok(())
+}
+
+fn create_instance(
+    _store: &mut Store,
+    _module: &Module,
+) -> Result<(wasmer::Instance, wasmer::Memory), WasmError> {
+    // TODO
+    unimplemented!();
 }
