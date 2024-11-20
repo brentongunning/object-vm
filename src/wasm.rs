@@ -76,8 +76,9 @@ impl<P: ObjectProvider> WasmImpl<P> {
 
 impl<P: ObjectProvider> Wasm for WasmImpl<P> {
     fn reset(&mut self) -> Result<(), WasmError> {
-        // TODO
-        unimplemented!();
+        self.classes.clear();
+        self.instances.clear();
+        Ok(())
     }
 
     fn object_ids(&mut self, _callback: impl FnMut(&Id)) -> Result<(), WasmError> {
