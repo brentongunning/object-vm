@@ -1,19 +1,24 @@
 use crate::{
     core::{Id, Object, NULL_ID},
-    errors::WasmError,
+    errors::{StackError, VmError, WasmError},
     misc::ObjectProvider,
+    stack::Stack,
+    vm::Vm,
 };
 use std::{
     collections::{HashMap, HashSet},
+    marker::PhantomData,
     ptr::NonNull,
     sync::Arc,
 };
 use wasmer::{
+    imports,
     sys::{BaseTunables, EngineBuilder, Features},
     vm::{
         MemoryStyle, TableStyle, VMConfig, VMMemory, VMMemoryDefinition, VMTable, VMTableDefinition,
     },
-    CompilerConfig, MemoryError, MemoryType, Module, Singlepass, Store, TableType, Tunables, Type,
+    CompilerConfig, FunctionEnv, FunctionEnvMut, Imports, Memory, MemoryError, MemoryType, Module,
+    RuntimeError, Singlepass, Store, TableType, Tunables, Type,
 };
 use wasmer_middlewares::Metering;
 
@@ -447,4 +452,123 @@ fn create_instance(
 ) -> Result<(wasmer::Instance, wasmer::Memory), WasmError> {
     // TODO
     unimplemented!();
+}
+
+struct Env<M: Vm + Send> {
+    vm_ptr: usize,
+    mem_ptr: usize,
+    mem_size: usize,
+    phantom: PhantomData<M>,
+}
+
+impl<M: Vm + Send> Env<M> {
+    fn vm(&self) -> &mut M {
+        unsafe { &mut *(self.vm_ptr as *mut M) }
+    }
+}
+
+fn create_imports<M: Vm + Send + 'static>(
+    store: &mut Store,
+    vm_ptr: usize,
+    memory: Memory,
+) -> Result<Imports, WasmError> {
+    let env = FunctionEnv::new(
+        store,
+        Env::<M> {
+            vm_ptr,
+            mem_ptr: memory.view(store).data_ptr() as usize,
+            mem_size: memory.view(store).data_size() as usize,
+            phantom: PhantomData,
+        },
+    );
+
+    let import_object = imports! {
+        "env" => {
+            "memory" => memory
+        },
+        "vm" => {
+            "push" => wasmer::Function::new_typed_with_env(store, &env, push),
+            "pop" => wasmer::Function::new_typed_with_env(store, &env, pop),
+            "abort" => wasmer::Function::new_typed_with_env(store, &env, abort),
+            "deploy" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().deploy()?) }),
+            "create" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().create()?) }),
+            "call" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().call()?) }),
+            "state" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().state()?) }),
+            "class" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().class()?) }),
+            "caller" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().caller()?) }),
+            "expect_sig" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().expect_sig()?) }),
+            "fund" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().fund()?) })
+        }
+    };
+
+    Ok(import_object)
+}
+
+fn push<M: Vm + Send + 'static>(
+    env: FunctionEnvMut<Env<M>>,
+    ptr: i32,
+    len: i32,
+) -> Result<(), RuntimeError> {
+    let ptr = ptr as u32 as usize;
+    let len = len as u32 as usize;
+    if env.data().mem_size < ptr + len {
+        return Err(RuntimeError::new("out of bounds"));
+    }
+    let ptr = (env.data().mem_ptr + ptr) as *const u8;
+    let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+    Ok(env.data().vm().stack().push(slice)?)
+}
+
+fn pop<M: Vm + Send + 'static>(
+    env: FunctionEnvMut<Env<M>>,
+    ptr: i32,
+    max_len: i32,
+) -> Result<i32, RuntimeError> {
+    let ptr = ptr as u32 as usize;
+    let max_len = max_len as u32 as usize;
+    env.data().vm().stack().pop(|buf| {
+        if buf.len() > max_len || env.data().mem_size < (ptr + buf.len()) {
+            return Err(RuntimeError::new("out of bounds"));
+        }
+        let src = buf.as_ptr();
+        let dst = (env.data().mem_ptr + ptr) as *mut u8;
+        unsafe { std::ptr::copy_nonoverlapping(src, dst, buf.len()) };
+        Ok(buf.len() as i32)
+    })?
+}
+
+fn abort<M: Vm + Send + 'static>(
+    env: FunctionEnvMut<Env<M>>,
+    ptr: i32,
+    len: i32,
+) -> Result<(), RuntimeError> {
+    let ptr = ptr as u32 as usize;
+    let len = len as u32 as usize;
+    if env.data().mem_size < ptr + len {
+        return Err(RuntimeError::new("abort with bad msg"));
+    }
+    let ptr = (env.data().mem_ptr + ptr) as *const u8;
+    let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+    let error = std::str::from_utf8(slice).unwrap_or("abort with bad msg");
+    Err(RuntimeError::new(error))
+}
+
+impl From<StackError> for RuntimeError {
+    fn from(e: StackError) -> Self {
+        RuntimeError::new(format!("{:?}", e))
+    }
+}
+
+impl From<VmError> for RuntimeError {
+    fn from(e: VmError) -> Self {
+        RuntimeError::new(format!("{:?}", e))
+    }
 }
