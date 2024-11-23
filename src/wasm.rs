@@ -27,7 +27,6 @@ const WASM_STACK_SIZE: usize = 1024 * 1024;
 // TODO: Move to limits
 const MAX_MEMORY_PAGES: usize = 1;
 
-// TODO: static call?
 pub trait Wasm {
     fn reset(&mut self) -> Result<(), WasmError>;
     fn object_ids(&mut self, callback: impl FnMut(&Id)) -> Result<(), WasmError>;
