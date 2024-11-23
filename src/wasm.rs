@@ -372,7 +372,7 @@ fn check_imports(module: &Module, max_memory_pages: usize) -> Result<(), WasmErr
         "state",
         "class",
         "caller",
-        "expect_sig",
+        "checksig",
         "fund",
         "memory",
     ]
@@ -502,8 +502,8 @@ fn create_imports<M: Vm + Send + 'static>(
                 |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().class()?) }),
             "caller" => wasmer::Function::new_typed_with_env(store, &env,
                 |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().caller()?) }),
-            "expect_sig" => wasmer::Function::new_typed_with_env(store, &env,
-                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().expect_sig()?) }),
+            "checksig" => wasmer::Function::new_typed_with_env(store, &env,
+                |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().checksig()?) }),
             "fund" => wasmer::Function::new_typed_with_env(store, &env,
                 |env: FunctionEnvMut<Env<M>>| -> Result<(), RuntimeError> { Ok(env.data().vm().fund()?) })
         }

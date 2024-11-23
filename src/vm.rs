@@ -22,9 +22,9 @@ pub trait Vm {
     fn class(&mut self) -> Result<(), VmError>; // object_id -- class_id
 
     fn caller(&mut self) -> Result<(), VmError>; // index -- object_id
-    fn expect_sig(&mut self) -> Result<(), VmError>; // pubkey --
+    fn checksig(&mut self) -> Result<(), VmError>; // pubkey --
 
-    fn auth(&mut self) -> Result<(), VmError>; // pubkey --
+    fn sign(&mut self) -> Result<(), VmError>; // pubkey --
     fn uniquifier(&mut self) -> Result<(), VmError>; // revision_id --
     fn fund(&mut self) -> Result<(), VmError>; // instance_id --
 }
@@ -202,13 +202,13 @@ impl<S: Stack, W: Wasm> Vm for VmImpl<S, W> {
         Ok(())
     }
 
-    fn expect_sig(&mut self) -> Result<(), VmError> {
+    fn checksig(&mut self) -> Result<(), VmError> {
         let pubkey: PubKey = self.stack.pop(decode_arr)??;
         self.pending_sigs.insert(pubkey);
         Ok(())
     }
 
-    fn auth(&mut self) -> Result<(), VmError> {
+    fn sign(&mut self) -> Result<(), VmError> {
         let pubkey: PubKey = self.stack.pop(decode_arr)??;
         self.pending_sigs.remove(&pubkey);
         Ok(())
@@ -370,24 +370,6 @@ mod tests {
     }
 
     #[test]
-    fn auth() {
-        // TODO
-        unimplemented!();
-    }
-
-    #[test]
-    fn uniquifier() {
-        // TODO
-        unimplemented!();
-    }
-
-    #[test]
-    fn fund() {
-        // TODO
-        unimplemented!();
-    }
-
-    #[test]
     fn caller() {
         let mut vm = mock_vm();
         vm.stack().push(&0_u32.to_le_bytes()).ok();
@@ -440,5 +422,29 @@ mod tests {
             vm.caller(),
             Err(VmError::Stack(StackError::BadElement))
         ));
+    }
+
+    #[test]
+    fn checksig() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn sign() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn uniquifier() {
+        // TODO
+        unimplemented!();
+    }
+
+    #[test]
+    fn fund() {
+        // TODO
+        unimplemented!();
     }
 }

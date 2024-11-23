@@ -286,7 +286,7 @@ impl<S: SigVerifier, V: Vm> Interpreter for InterpreterImpl<S, V> {
                     let sig: Sig = sig_buf.try_into().unwrap();
                     self.sig_verifier.verify(&pubkey, &sig, index)?;
                     self.vm.stack().push(&pubkey)?;
-                    self.vm.auth()?;
+                    self.vm.sign()?;
                 }
 
                 OP_UNIQUIFIER => {
@@ -400,11 +400,11 @@ mod tests {
             Ok(())
         }
 
-        fn expect_sig(&mut self) -> Result<(), VmError> {
+        fn checksig(&mut self) -> Result<(), VmError> {
             Ok(())
         }
 
-        fn auth(&mut self) -> Result<(), VmError> {
+        fn sign(&mut self) -> Result<(), VmError> {
             let _pubkey: PubKey = self.stack().pop(decode_arr)??;
             Ok(())
         }
@@ -505,12 +505,12 @@ mod tests {
             self.check_expectation("caller")
         }
 
-        fn expect_sig(&mut self) -> Result<(), VmError> {
-            self.check_expectation("expect_sig")
+        fn checksig(&mut self) -> Result<(), VmError> {
+            self.check_expectation("checksig")
         }
 
-        fn auth(&mut self) -> Result<(), VmError> {
-            self.check_expectation("auth")
+        fn sign(&mut self) -> Result<(), VmError> {
+            self.check_expectation("sign")
         }
 
         fn uniquifier(&mut self) -> Result<(), VmError> {
@@ -1687,7 +1687,7 @@ mod tests {
             &[vec![OP_SIGN], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
@@ -1709,8 +1709,8 @@ mod tests {
             .concat(),
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
@@ -1737,7 +1737,7 @@ mod tests {
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
-                    "auth",
+                    "sign",
                     vec![vec![1; PUBKEY_LEN]],
                     vec![],
                     Err(VmError::Placeholder("err".into())),
@@ -1782,7 +1782,7 @@ mod tests {
             &[vec![OP_SIGNTO], vec![1; PUBKEY_LEN], vec![2; SIG_LEN]].concat(),
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
@@ -1804,8 +1804,8 @@ mod tests {
             .concat(),
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
-                mock_vm.expect("auth", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![1; PUBKEY_LEN]], vec![], Ok(()));
+                mock_vm.expect("sign", vec![vec![3; PUBKEY_LEN]], vec![], Ok(()));
                 mock_vm.expect("end", vec![], vec![], Ok(()));
             },
             |mock_sig_verifier| {
@@ -1832,7 +1832,7 @@ mod tests {
             |mock_vm| {
                 mock_vm.expect("begin", vec![], vec![], Ok(()));
                 mock_vm.expect(
-                    "auth",
+                    "sign",
                     vec![vec![1; PUBKEY_LEN]],
                     vec![],
                     Err(VmError::Placeholder("err".into())),
